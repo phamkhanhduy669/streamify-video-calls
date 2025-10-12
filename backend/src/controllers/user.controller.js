@@ -33,6 +33,22 @@ export async function getMyFriends(req, res) {
   }
 }
 
+export async function removeFriend(req, res) {
+  try {
+    const { id: friendId } = req.params;
+    const userId = req.user.id;
+
+    // remove each other from friends lists
+    await User.findByIdAndUpdate(userId, { $pull: { friends: friendId } });
+    await User.findByIdAndUpdate(friendId, { $pull: { friends: userId } });
+
+    res.status(200).json({ message: "Friend removed successfully" });
+  } catch (error) {
+    console.error("Error in removeFriend controller:", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
 export async function sendFriendRequest(req, res) {
   try {
     const myId = req.user.id;

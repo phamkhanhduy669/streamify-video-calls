@@ -1,5 +1,6 @@
 import express from "express";
 import { protectRoute } from "../middleware/auth.middleware.js";
+import { removeFriend } from "../controllers/user.controller.js";
 import {
   acceptFriendRequest,
   getFriendRequests,
@@ -8,6 +9,9 @@ import {
   getRecommendedUsers,
   sendFriendRequest,
 } from "../controllers/user.controller.js";
+
+
+
 
 const router = express.Router();
 
@@ -22,5 +26,8 @@ router.put("/friend-request/:id/accept", acceptFriendRequest);
 
 router.get("/friend-requests", getFriendRequests);
 router.get("/outgoing-friend-requests", getOutgoingFriendReqs);
+router.delete("/friends/:id", removeFriend);
+
+
 
 export default router;
