@@ -3,8 +3,8 @@ import { LANGUAGE_TO_FLAG } from "../constants";
 
 const FriendCard = ({ friend }) => {
   return (
-    <div className="card bg-base-200 hover:shadow-md transition-shadow">
-      <div className="card-body p-4">
+    <div className="card h-full bg-base-200 hover:shadow-md transition-shadow">
+  <div className="card-body p-4 flex flex-col justify-between h-full min-h-[200px]">
         {/* USER INFO */}
         <div className="flex items-center gap-3 mb-3">
           <div className="avatar size-12">
@@ -24,7 +24,7 @@ const FriendCard = ({ friend }) => {
           </span>
         </div>
 
-        <Link to={`/chat/${friend._id}`} className="btn btn-outline w-full">
+        <Link to={`/chat/${friend._id}`} className="btn btn-outline w-full mt-4">
           Message
         </Link>
       </div>
