@@ -41,6 +41,12 @@ export async function removeFriend(req, res) {
     // remove each other from friends lists
     await User.findByIdAndUpdate(userId, { $pull: { friends: friendId } });
     await User.findByIdAndUpdate(friendId, { $pull: { friends: userId } });
+    await FriendRequest.deleteMany({
+      $or: [
+        { sender: userId, recipient: friendId },
+        { sender: friendId, recipient: userId },
+      ],
+    });
 
     res.status(200).json({ message: "Friend removed successfully" });
   } catch (error) {
