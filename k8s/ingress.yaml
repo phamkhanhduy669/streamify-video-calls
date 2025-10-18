@@ -1,0 +1,24 @@
+# k8s/ingress.yaml (Đã cập nhật)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: streamify-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: streamify-frontend-svc
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: streamify-backend-svc
+            port:
+              number: 5001
