@@ -18,7 +18,10 @@ Highlights:
 - 🚀 Free Deployment
 - 🎯 Built with Scalable Technologies like Stream
 - ⏳ And much more!
+---
 
+> ## 📘 Sử dụng k8s 
+> 🔗 [Xem chi tiết tại đây](k8s/README.md)
 ---
 
 ## 🧪 .env Setup
