@@ -11,6 +11,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "node-cache": "^5.1.2"
+    "@tanstack/react-query-devtools": "^5.90.2",
+    "node-cache": "^5.1.2",
+    "react-router-dom": "^7.9.4"
   }
 }
