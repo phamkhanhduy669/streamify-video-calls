@@ -53,6 +53,15 @@ npm install
 npm run dev
 ```
 
+to run on all cpu cores (only use when run on server):
+
+```bash
+cd backend
+npm install
+npm install pm2 -g
+npm run start:prod
+```
+
 ## 💻 Run the Frontend
 
 ```bash

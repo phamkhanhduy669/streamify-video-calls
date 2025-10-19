@@ -10,14 +10,18 @@ import {
   getProfile,
   updateProfile,
 } from "../controllers/user.controller.js";
+import cacheMiddleware from "../middleware/cache.middleware.js";
 
 const router = express.Router();
 
 // apply auth middleware to all routes
 router.use(protectRoute);
 
-router.get("/", getRecommendedUsers);
-router.get("/friends", getMyFriends);
+// Cache danh sách người dùng đề xuất trong 60 giây
+router.get("/", cacheMiddleware(60), getRecommendedUsers);
+
+// Cache danh sách bạn bè trong 120 giây
+router.get("/friends", cacheMiddleware(120), getMyFriends);
 
 router.post("/friend-request/:id", sendFriendRequest);
 router.put("/friend-request/:id/accept", acceptFriendRequest);
@@ -25,7 +29,8 @@ router.put("/friend-request/:id/accept", acceptFriendRequest);
 router.get("/me", getProfile);
 router.put("/me", updateProfile);
 
-router.get("/friend-requests", getFriendRequests);
+// Cache danh sách lời mời kết bạn trong 30 giây (dữ liệu này thay đổi thường xuyên hơn)
+router.get("/friend-requests", cacheMiddleware(30), getFriendRequests);
 router.get("/outgoing-friend-requests", getOutgoingFriendReqs);
 
 export default router;
