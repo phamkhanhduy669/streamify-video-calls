@@ -28,7 +28,7 @@ Highlights:
 
 ### Backend (`/backend`)
 
-```
+```.env
 PORT=5001
 MONGO_URI=your_mongo_uri
 STEAM_API_KEY=your_steam_api_key
@@ -39,7 +39,7 @@ NODE_ENV=development
 
 ### Frontend (`/frontend`)
 
-```
+```.env
 VITE_STREAM_API_KEY=your_stream_api_key
 ```
 
