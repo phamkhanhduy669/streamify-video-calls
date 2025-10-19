@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
+import { upsertStreamUser } from "../lib/stream.js";
 
 export async function getRecommendedUsers(req, res) {
   try {
@@ -143,6 +144,58 @@ export async function getOutgoingFriendReqs(req, res) {
     res.status(200).json(outgoingRequests);
   } catch (error) {
     console.log("Error in getOutgoingFriendReqs controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function getProfile(req, res) {
+  try {
+    // req.user is set by protectRoute and already has sensitive fields omitted
+    res.status(200).json({ user: req.user });
+  } catch (error) {
+    console.error("Error in getProfile controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function updateProfile(req, res) {
+  try {
+    const userId = req.user._id;
+
+    const allowed = [
+      "fullName",
+      "bio",
+      "profilePic",
+      "nativeLanguage",
+      "learningLanguage",
+      "location",
+    ];
+
+    const updates = {};
+    allowed.forEach((f) => {
+      if (Object.prototype.hasOwnProperty.call(req.body, f)) {
+        updates[f] = req.body[f];
+      }
+    });
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "No valid fields provided for update" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true }).select("-password");
+
+    if (!updatedUser) return res.status(404).json({ message: "User not found" });
+
+    // keep Stream user metadata in sync
+    try {
+      await upsertStreamUser({ id: updatedUser._id.toString(), name: updatedUser.fullName, image: updatedUser.profilePic || "" });
+    } catch (streamErr) {
+      console.log("Error syncing Stream user after profile update:", streamErr.message);
+    }
+
+    res.status(200).json({ user: updatedUser });
+  } catch (error) {
+    console.error("Error in updateProfile controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

@@ -1,4 +1,4 @@
-name: Build and Test Application
+name: CI/CD Pipeline
 
 on:
   push:
@@ -7,44 +7,38 @@ on:
     branches: [ "master" ]
 
 jobs:
+  # JOB 1: KIỂM TRA CODE (LINT & BUILD)
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Use Node.js 20.x
+
+      - name: Set up Node.js 20.x
         uses: actions/setup-node@v4
         with:
           node-version: '>=20.x'
 
-      # --- BACKEND CACHING AND INSTALLATION ---
+      # Caching và Install cho Backend
       - name: Cache backend dependencies
-        id: cache-backend-deps
         uses: actions/cache@v4
         with:
           path: backend/node_modules
           key: ${{ runner.os }}-backend-npm-${{ hashFiles('backend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-backend-npm-
-
-      # --- BACKEND STEPS ---
       - name: Install backend dependencies
         working-directory: ./backend
         run: npm install
 
-
-      # --- FRONTEND CACHING AND INSTALLATION ---
+      # Caching và Install cho Frontend
       - name: Cache frontend dependencies
-        id: cache-frontend-deps
         uses: actions/cache@v4
         with:
           path: frontend/node_modules
           key: ${{ runner.os }}-frontend-npm-${{ hashFiles('frontend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-frontend-npm-
-
-      # --- FRONTEND STEPS ---
       - name: Install frontend dependencies
         working-directory: ./frontend
         run: npm install
@@ -53,9 +47,41 @@ jobs:
         working-directory: ./frontend
         run: npm run lint
 
-      - name: Build frontend application
+      - name: Build frontend for validation
         working-directory: ./frontend
         run: npm run build
         env:
           VITE_STREAM_API_KEY: ${{ secrets.VITE_STREAM_API_KEY }}
 
+  # JOB 2: BUILD VÀ ĐẨY DOCKER IMAGES
+  push-to-dockerhub:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    needs: build-and-test 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-backend:latest
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-frontend:latest
+          secrets: |
+            "vite_stream_api_key=${{ secrets.VITE_STREAM_API_KEY }}"

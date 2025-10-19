@@ -14,6 +14,7 @@ import { capitialize } from "../lib/utils";
 import FriendCard, { getLanguageFlag } from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
 
+
 const HomePage = () => {
   const queryClient = useQueryClient();
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
@@ -100,7 +101,9 @@ const HomePage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {recommendedUsers.map((user) => {
                 const hasRequestBeenSent = outgoingRequestsIds.has(user._id);
-
+                /* Format user bio */
+                user.bio = (user.bio || "").trim();
+                user.bio = (user.bio) ? user.bio : 'No bio provided';
                 return (
                   <div
                     key={user._id}
@@ -134,7 +137,7 @@ const HomePage = () => {
                           Learning: {capitialize(user.learningLanguage)}
                         </span>
                       </div>
-
+                      {/* Bio */}
                       {user.bio && <p className="text-sm opacity-70">{user.bio}</p>}
 
                       {/* Action button */}
