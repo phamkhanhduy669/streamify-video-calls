@@ -9,7 +9,7 @@ kubectl: Công cụ dòng lệnh để tương tác với Kubernetes.
 ## 🚀 Chạy trên môi trường Local (Để phát triển & kiểm thử)
 
 ### 1. Lấy image từ Docker hub
-```
+```pwsh
 # Pull image của backend
 docker pull phamkhanhduy/streamify-backend:latest
 
@@ -24,7 +24,7 @@ File này chứa các thông tin nhạy cảm và không được đưa lên Git
 a. Trong thư mục k8s này, tạo một file mới tên là `secrets.yaml`
 
 b. Dán nội dung sau vào và thay thế bằng các giá trị đã được mã hóa Base64 của bạn:
-``` 
+``` yaml
 apiVersion: v1
 kind: Secret
 metadata:
@@ -37,7 +37,7 @@ data:
   JWT_SECRET_KEY: "your_jwt_secret_base64"
 ```
 ***Lệnh base64 với pwsh*** :
-``` 
+``` pwsh
 [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes("your_mongo_uri_base64"))
 ```
 
@@ -47,13 +47,13 @@ Chạy lần lượt các lệnh sau:
 
 a. Cài đặt Ingress Controller (Chỉ làm một lần):
 
-```
+```pwsh
 kubectl apply -f [https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml](https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml)
 ```
 
 
 b. Áp dụng các file cấu hình:
-```
+```pwsh
 # Áp dụng các biến môi trường không nhạy cảm và bí mật
 kubectl apply -f ./configmap.yaml
 kubectl apply -f ./secrets.yaml
