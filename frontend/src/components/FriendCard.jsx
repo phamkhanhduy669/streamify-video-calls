@@ -2,7 +2,7 @@
 import { Link } from "react-router";
 import { LANGUAGE_TO_FLAG } from "../constants";
 import { useStreamChat } from "../context/StreamChatProvider";
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react";
 
 export function getLanguageFlag(language) {
   if (!language) return null;
@@ -21,16 +21,6 @@ export function getLanguageFlag(language) {
   return null;
 }
 
-function safeBio(bio) {
-  if (!bio) return "";
-  return bio.length > 100 ? bio.slice(0, 100) + "..." : bio;
-}
-
-function capitalize(str) {
-  if (!str) return "";
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-}
-
 const FriendCard = ({ friend, onDelete }) => {
   const { chatClient } = useStreamChat();
   const [hasUnread, setHasUnread] = useState(false);
@@ -41,7 +31,7 @@ const FriendCard = ({ friend, onDelete }) => {
     }
   };
 
-  // 🔔 Kiểm tra tin nhắn chưa đọc
+  // 🔔 Check unread messages
   useEffect(() => {
     if (!chatClient || !friend?._id) return;
 
@@ -60,14 +50,14 @@ const FriendCard = ({ friend, onDelete }) => {
 
     checkUnread();
 
-    // 🟢 Lắng nghe sự kiện tin nhắn mới
+    // 🟢 Listen for new messages
     channel.on("message.new", (event) => {
       if (event.user.id !== chatClient.user.id) {
         setHasUnread(true);
       }
     });
 
-    // 🟣 Lắng nghe khi người dùng đọc tin nhắn
+    // 🟣 Listen for read events
     channel.on("message.read", (event) => {
       if (event.user.id === chatClient.user.id) {
         setHasUnread(false);
@@ -107,7 +97,6 @@ const FriendCard = ({ friend, onDelete }) => {
         <div className="flex gap-2 relative">
           <Link to={`/chat/${friend._id}`} className="btn btn-outline flex-1 relative">
             Message
-            {/* 🔴 Chấm đỏ hiển thị nếu có tin chưa đọc */}
             {hasUnread && (
               <span className="absolute -top-1 -right-1 size-3 bg-red-500 rounded-full"></span>
             )}
@@ -120,6 +109,5 @@ const FriendCard = ({ friend, onDelete }) => {
     </div>
   );
 };
-
 
 export default FriendCard;
