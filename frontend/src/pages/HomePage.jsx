@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"; 
 import { useEffect, useState } from "react";
 import {
   getOutgoingFriendReqs,
@@ -7,18 +7,17 @@ import {
   sendFriendRequest,
 } from "../lib/api";
 import { Link } from "react-router";
-import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon } from "lucide-react";
+import { CheckCircleIcon, MapPinIcon, UserPlusIcon } from "lucide-react";
 
 import { capitialize } from "../lib/utils";
-
 import FriendCard, { getLanguageFlag } from "../components/FriendCard";
 import NoFriendsFound from "../components/NoFriendsFound";
-
 
 const HomePage = () => {
   const queryClient = useQueryClient();
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
 
+  // eslint-disable-next-line no-unused-vars
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
     queryFn: getUserFriends,
@@ -79,9 +78,10 @@ const HomePage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {recommendedUsers.map((user) => {
                 const hasRequestBeenSent = outgoingRequestsIds.has(user._id);
-                /* Format user bio */
+
                 user.bio = (user.bio || "").trim();
-                user.bio = (user.bio) ? user.bio : 'No bio provided';
+                user.bio = user.bio ? user.bio : "No bio provided";
+
                 return (
                   <div
                     key={user._id}
@@ -115,6 +115,7 @@ const HomePage = () => {
                           Learning: {capitialize(user.learningLanguage)}
                         </span>
                       </div>
+
                       {/* Bio */}
                       {user.bio && <p className="text-sm opacity-70">{user.bio}</p>}
 
@@ -122,7 +123,7 @@ const HomePage = () => {
                       <button
                         className={`btn w-full mt-2 ${
                           hasRequestBeenSent ? "btn-disabled" : "btn-primary"
-                        } `}
+                        }`}
                         onClick={() => sendRequestMutation(user._id)}
                         disabled={hasRequestBeenSent || isPending}
                       >

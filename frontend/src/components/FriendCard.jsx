@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { Link } from "react-router";
 import { LANGUAGE_TO_FLAG } from "../constants";
 import { useStreamChat } from "../context/StreamChatProvider";
