@@ -1,95 +1,153 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
-import { useStreamChat } from "../context/StreamChatProvider";
-import useAuthUser from "../hooks/useAuthUser";
-
 import {
-  Channel,
-  ChannelHeader,
-  Chat,
-  MessageInput,
-  MessageList,
-  Thread,
-  Window,
-} from "stream-chat-react";
+  getOutgoingFriendReqs,
+  getRecommendedUsers,
+  getUserFriends,
+  sendFriendRequest,
+} from "../lib/api";
+import { Link } from "react-router";
+import { CheckCircleIcon, MapPinIcon, UserPlusIcon, UsersIcon } from "lucide-react";
 
-import ChatLoader from "../components/ChatLoader";
-import CallButton from "../components/CallButton";
-import toast from "react-hot-toast";
+import { capitialize } from "../lib/utils";
 
-const ChatPage = () => {
-  const { id: targetUserId } = useParams();
-  const { chatClient } = useStreamChat();
-  const { authUser } = useAuthUser();
+import FriendCard, { getLanguageFlag } from "../components/FriendCard";
+import NoFriendsFound from "../components/NoFriendsFound";
 
-  const [channel, setChannel] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+const HomePage = () => {
+  const queryClient = useQueryClient();
+  const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
+
+  const { data: friends = [], isLoading: loadingFriends } = useQuery({
+    queryKey: ["friends"],
+    queryFn: getUserFriends,
+  });
+
+  const { data: recommendedUsers = [], isLoading: loadingUsers } = useQuery({
+    queryKey: ["users"],
+    queryFn: getRecommendedUsers,
+  });
+
+  const { data: outgoingFriendReqs } = useQuery({
+    queryKey: ["outgoingFriendReqs"],
+    queryFn: getOutgoingFriendReqs,
+  });
+
+  const { mutate: sendRequestMutation, isPending } = useMutation({
+    mutationFn: sendFriendRequest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["outgoingFriendReqs"] }),
+  });
 
   useEffect(() => {
-    if (!chatClient || !chatClient.user || !authUser) return;
-    
-
-    const setupChannel = async () => {
-      if (!chatClient || !authUser) {
-        console.warn("⚠️ chatClient hoặc authUser chưa sẵn sàng");
-        return;
-      }
-
-      // 🔹 Chờ cho tới khi connectUser hoàn tất
-      if (!chatClient.user) {
-        console.warn("⚠️ Chat client chưa connectUser, chờ 500ms...");
-        setTimeout(setupChannel, 500);
-        return;
-      }
-
-
-      try {
-        const channelId = [authUser._id, targetUserId].sort().join("-");
-        const currChannel = chatClient.channel("messaging", channelId, {
-          members: [authUser._id, targetUserId],
-        });
-
-        await currChannel.watch();
-        await currChannel.markRead();
-        setChannel(currChannel);
-      } catch (err) {
-        console.error("Chat channel setup error:", err);
-        toast.error("Could not load chat.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    setupChannel();
-  }, [chatClient, authUser, targetUserId]);
-
-  if (loading || !chatClient || !channel) return <ChatLoader />;
-
-  const handleVideoCall = () => {
-    const callUrl = `${window.location.origin}/call/${channel.id}`;
-    channel.sendMessage({
-      text: `I've started a video call. Join me here: ${callUrl}`,
-    });
-    toast.success("Video call link sent successfully!");
-  };
+    const outgoingIds = new Set();
+    if (outgoingFriendReqs && outgoingFriendReqs.length > 0) {
+      outgoingFriendReqs.forEach((req) => {
+        outgoingIds.add(req.recipient._id);
+      });
+      setOutgoingRequestsIds(outgoingIds);
+    }
+  }, [outgoingFriendReqs]);
 
   return (
-    <div className="h-[93vh]">
-      <Chat client={chatClient}>
-        <Channel channel={channel}>
-          <div className="w-full relative">
-            <CallButton handleVideoCall={handleVideoCall} />
-            <Window>
-              <ChannelHeader />
-              <MessageList />
-              <MessageInput focus />
-            </Window>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="container mx-auto space-y-10">
+        <section>
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Meet New Learners</h2>
+                <p className="opacity-70">
+                  Discover perfect language exchange partners based on your profile
+                </p>
+              </div>
+            </div>
           </div>
-          <Thread />
-        </Channel>
-      </Chat>
+
+          {loadingUsers ? (
+            <div className="flex justify-center py-12">
+              <span className="loading loading-spinner loading-lg" />
+            </div>
+          ) : recommendedUsers.length === 0 ? (
+            <div className="card bg-base-200 p-6 text-center">
+              <h3 className="font-semibold text-lg mb-2">No recommendations available</h3>
+              <p className="text-base-content opacity-70">
+                Check back later for new language partners!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {recommendedUsers.map((user) => {
+                const hasRequestBeenSent = outgoingRequestsIds.has(user._id);
+                /* Format user bio */
+                user.bio = (user.bio || "").trim();
+                user.bio = (user.bio) ? user.bio : 'No bio provided';
+                return (
+                  <div
+                    key={user._id}
+                    className="card bg-base-200 hover:shadow-lg transition-all duration-300"
+                  >
+                    <div className="card-body p-5 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="avatar size-16 rounded-full">
+                          <img src={user.profilePic} alt={user.fullName} />
+                        </div>
+
+                        <div>
+                          <h3 className="font-semibold text-lg">{user.fullName}</h3>
+                          {user.location && (
+                            <div className="flex items-center text-xs opacity-70 mt-1">
+                              <MapPinIcon className="size-3 mr-1" />
+                              {user.location}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Languages with flags */}
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="badge badge-secondary">
+                          {getLanguageFlag(user.nativeLanguage)}
+                          Native: {capitialize(user.nativeLanguage)}
+                        </span>
+                        <span className="badge badge-outline">
+                          {getLanguageFlag(user.learningLanguage)}
+                          Learning: {capitialize(user.learningLanguage)}
+                        </span>
+                      </div>
+                      {/* Bio */}
+                      {user.bio && <p className="text-sm opacity-70">{user.bio}</p>}
+
+                      {/* Action button */}
+                      <button
+                        className={`btn w-full mt-2 ${
+                          hasRequestBeenSent ? "btn-disabled" : "btn-primary"
+                        } `}
+                        onClick={() => sendRequestMutation(user._id)}
+                        disabled={hasRequestBeenSent || isPending}
+                      >
+                        {hasRequestBeenSent ? (
+                          <>
+                            <CheckCircleIcon className="size-4 mr-2" />
+                            Request Sent
+                          </>
+                        ) : (
+                          <>
+                            <UserPlusIcon className="size-4 mr-2" />
+                            Send Friend Request
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 };
 
-export default ChatPage;
+export default HomePage;

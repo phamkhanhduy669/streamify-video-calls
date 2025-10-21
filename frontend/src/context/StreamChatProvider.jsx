@@ -1,4 +1,4 @@
-// src/context/StreamChatProvider.jsx
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { StreamChat } from "stream-chat";
 import toast from "react-hot-toast";
