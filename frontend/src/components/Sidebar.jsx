@@ -1,8 +1,10 @@
 import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon } from "lucide-react";
+import { useStreamChat } from "../context/StreamChatProvider";
 
 const Sidebar = () => {
+    const { unreadCount } = useStreamChat();
   const { authUser } = useAuthUser();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -37,6 +39,12 @@ const Sidebar = () => {
         >
           <UsersIcon className="size-5 text-base-content opacity-70" />
           <span>Friends</span>
+          {unreadCount > 0 && (
+            <span className="absolute top-2 right-4 w-3 h-3 bg-red-500 rounded-full animate-pulse">
+            {unreadCount}
+            </span>
+          )}
+          
         </Link>
 
         <Link
