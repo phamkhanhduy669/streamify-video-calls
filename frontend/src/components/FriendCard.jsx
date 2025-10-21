@@ -1,11 +1,11 @@
-/* eslint-disable react-refresh/only-export-components */
 import { Link } from "react-router";
 import { LANGUAGE_TO_FLAG } from "../constants";
-import { useStreamChat } from "../context/StreamChatProvider";
-import { useEffect, useState } from "react";
+import { safeBio, capitialize } from "../lib/utils";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function getLanguageFlag(language) {
   if (!language) return null;
+
   const langLower = language.toLowerCase();
   const countryCode = LANGUAGE_TO_FLAG[langLower];
 
@@ -21,90 +21,35 @@ export function getLanguageFlag(language) {
   return null;
 }
 
-const FriendCard = ({ friend, onDelete }) => {
-  const { chatClient } = useStreamChat();
-  const [hasUnread, setHasUnread] = useState(false);
-
-  const handleDelete = () => {
-    if (window.confirm(`Are you sure you want to delete your friend ${friend.fullName}?`)) {
-      if (onDelete) onDelete(friend._id);
-    }
-  };
-
-  // 🔔 Check unread messages
-  useEffect(() => {
-    if (!chatClient || !friend?._id) return;
-
-    const channelId = [chatClient.user.id, friend._id].sort().join("-");
-    const channel = chatClient.channel("messaging", channelId);
-
-    const checkUnread = async () => {
-      try {
-        await channel.watch();
-        const unreadCount = channel.countUnread();
-        setHasUnread(unreadCount > 0);
-      } catch (err) {
-        console.warn("Unread check error:", err);
-      }
-    };
-
-    checkUnread();
-
-    // 🟢 Listen for new messages
-    channel.on("message.new", (event) => {
-      if (event.user.id !== chatClient.user.id) {
-        setHasUnread(true);
-      }
-    });
-
-    // 🟣 Listen for read events
-    channel.on("message.read", (event) => {
-      if (event.user.id === chatClient.user.id) {
-        setHasUnread(false);
-      }
-    });
-
-    return () => {
-      channel.off("message.new");
-      channel.off("message.read");
-    };
-  }, [chatClient, friend]);
-
+const FriendCard = ({ friend }) => {
+  const bio = safeBio(friend.bio);
   return (
-    <div className="card bg-base-200 hover:shadow-md transition-shadow">
-      <div className="card-body p-4">
+    <div className="card h-full bg-base-200 hover:shadow-md transition-shadow">
+      <div className="card-body p-4 flex flex-col justify-between h-full min-h-[220px]">
         {/* USER INFO */}
         <div className="flex items-center gap-3 mb-3">
           <div className="avatar size-12">
-            <img src={friend.profilePic} alt={friend.fullName} />
+            <img src={friend.profilePic || "/i.png"} alt={friend.fullName || "Unknown"} />
           </div>
-          <h3 className="font-semibold truncate">{friend.fullName}</h3>
+          <h3 className="font-semibold truncate">{friend.fullName || "Unknown"}</h3>
         </div>
 
-        {/* LANGUAGE INFO */}
         <div className="flex flex-wrap gap-1.5 mb-3">
           <span className="badge badge-secondary text-xs">
             {getLanguageFlag(friend.nativeLanguage)}
-            Native: {friend.nativeLanguage}
+            Native: {capitialize(friend.nativeLanguage)}
           </span>
           <span className="badge badge-outline text-xs">
             {getLanguageFlag(friend.learningLanguage)}
-            Learning: {friend.learningLanguage}
+            Learning: {capitialize(friend.learningLanguage)}
           </span>
         </div>
 
-        {/* ACTION BUTTONS */}
-        <div className="flex gap-2 relative">
-          <Link to={`/chat/${friend._id}`} className="btn btn-outline flex-1 relative">
-            Message
-            {hasUnread && (
-              <span className="absolute -top-1 -right-1 size-3 bg-red-500 rounded-full"></span>
-            )}
-          </Link>
-          <button onClick={handleDelete} className="btn btn-error flex-1">
-            Delete
-          </button>
-        </div>
+        {bio && <p className="text-sm opacity-70 mb-3">{bio}</p>}
+
+        <Link to={`/chat/${friend._id}`} className="btn btn-outline w-full mt-2">
+          Message
+        </Link>
       </div>
     </div>
   );
