@@ -3,6 +3,8 @@ import { ShipWheelIcon } from "lucide-react";
 import { Link } from "react-router";
 import useLogin from "../hooks/useLogin";
 
+const googleAuthUrl = "http://localhost:5001/api/auth/google";
+
 const LoginPage = () => {
   const [loginData, setLoginData] = useState({
     email: "",
@@ -100,6 +102,23 @@ const LoginPage = () => {
                       "Sign In"
                     )}
                   </button>
+                  <div className="divider my-2 text-sm">OR</div>
+
+                  {/* Nút Đăng nhập Google */}
+                  <a
+                    href={googleAuthUrl}
+                    className="btn btn-outline w-full flex items-center gap-2"
+                  >
+                    {/* Lưu ý: Bạn cần tải một file SVG logo của Google
+                      và đặt nó vào thư mục /public/google-logo.svg
+                    */}
+                    <img
+                      src="/google.png"
+                      alt="Google"
+                      className="w-5 h-5"
+                    />
+                    Sign in with Google
+                  </a>
 
                   <div className="text-center mt-4">
                     <p className="text-sm">
