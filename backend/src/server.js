@@ -9,7 +9,8 @@ import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
 
 import { connectDB } from "./lib/db.js";
-
+import "./lib/passport.config.js"; 
+import passport from "passport";
 const app = express();
 const PORT = process.env.PORT;
 
@@ -21,7 +22,7 @@ app.use(
     credentials: true, // allow frontend to send cookies
   })
 );
-
+app.use(passport.initialize());// khoi tao passport
 app.use(express.json());
 app.use(cookieParser());
 
@@ -36,6 +37,9 @@ if (process.env.NODE_ENV === "production") {
     res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
   });
 }
+app.get("/api/test", (req, res) => {
+  res.status(200).json({ message: "API test route is working!" });
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
