@@ -1,134 +1,152 @@
 import http from 'k6/http';
+import ws from 'k6/ws';
 import { check, sleep } from 'k6';
-import { Counter, Trend } from 'k6/metrics';
+import { SharedArray } from 'k6/data';
+// Import từ CDN (cách này ổn định)
+import papaparse from 'https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js';
 
-// ================= CONFIG =================
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:5001';
-const MAX_VUS = Number(__ENV.MAX_VUS) || 30;
-const STEP_DURATION = __ENV.STEP_DURATION || '30s';
-const TIMEOUT = '10s';
-const FAIL_LIMIT = 0.2; // stop test if >20% fail
+// -----------------------------------------------------------------
+// TÙY CHỈNH CÁC BIẾN NÀY
+// -----------------------------------------------------------------
+const API_BASE_URL = __ENV.API_URL || 'http://localhost:5001'; // Cổng 5001
+const WS_BASE_URL = __ENV.WS_URL || 'http://localhost:5001'; // Cổng 5001
 
-// ================= CUSTOM METRICS =================
-const failedRequests = new Counter('failed_requests');
-const successfulRequests = new Counter('successful_requests');
-const requestDuration = new Trend('request_duration');
+// [SỬA ĐỔI] Giảm thời gian cho một phiên test nhanh
+const SESSION_DURATION_MS = 30000; // 30 giây
+const CHAT_MESSAGE_INTERVAL_MS = 4000; // 4 giây
 
-// ================= BUILD STAGES =================
-function buildStages(maxVus, stepDur) {
-  const steps = Math.min(10, Math.ceil(maxVus / 5));
-  const stages = [];
-  const stepTarget = Math.ceil(maxVus / steps);
+// 1. TẢI DỮ LIỆU NGƯỜI DÙNG (users.csv)
+const users = new SharedArray('users', function () {
+    return papaparse.parse(open('./users.csv'), { header: true }).data;
+});
 
-  for (let i = 1; i <= steps; i++) {
-    stages.push({ duration: stepDur, target: Math.min(i * stepTarget, maxVus) });
-  }
-  stages.push({ duration: '1m', target: maxVus });
-  stages.push({ duration: '30s', target: 0 });
-  return stages;
-}
-
+// 2. CẤU HÌNH KIỂM THỬ (Đúng)
 export const options = {
-  stages: buildStages(MAX_VUS, STEP_DURATION),
-  thresholds: {
-    http_req_failed: ['rate<0.2'], // 20% max failure
-    http_req_duration: ['p(95)<3000'],
-  },
+    scenarios: {
+        chat_stress_test: {
+            executor: 'ramping-vus',
+            startVUs: 0,
+            stages: [
+                { duration: '10s', target: 5 },  // Tăng lên 5 VUs
+                { duration: '30s', target: 100 },  // Giữ 10 VUs
+                { duration: '30s', target: 1000 }, // Tăng lên 100 VUs
+                 { duration: '30s', target: 200 }, // Tăng lên 100 VUs
+                { duration: '30s', target: 100}, // Giữ 10 VUs
+                { duration: '5s', target: 0 },  // Giảm tải
+            ],
+            gracefulRampDown: '10s',
+        },
+    },
+    thresholds: {
+        'http_req_failed': ['rate<0.01'],
+        'checks{check:WebSocket connection established}': ['rate>0.99'], // Cú pháp này đã đúng
+        'http_req_duration': ['p(95)<2000'],
+    },
 };
 
-// ================= LOGIN DATA =================
-const CREDENTIALS = {
-  email: __ENV.TEST_EMAIL || 'dnmd@gmail.com',
-  password: __ENV.TEST_PASS || 'dnmd123',
-};
-
-// ================= STATE =================
-let totalRequests = 0;
-let totalFailures = 0;
-let maxStableUsers = 0;
-let lastPrintedVU = 0;
-
-// ================= TEST FUNCTION =================
+// -----------------------------------------------------------------
+// 3. KỊCH BẢN TEST CỦA MỖI VU
+// -----------------------------------------------------------------
 export default function () {
-  totalRequests++;
+    
+    // ---- Lấy user từ CSV ----
+    const vuIndex = __VU - 1; 
+    const user = users[vuIndex % users.length]; 
+    if (!user) { return; } 
 
-  // ---- LOGIN ----
-  const loginRes = http.post(
-    `${BASE_URL}/api/auth/login`,
-    JSON.stringify(CREDENTIALS),
-    { headers: { 'Content-Type': 'application/json' }, timeout: TIMEOUT }
-  );
+    // ---- BƯỚC A: ĐĂNG NHẬP (HTTP) ----
+    const loginPayload = JSON.stringify({
+        email: user.gmail,
+        password: user.password,
+    });
+    
+    let httpParams = {
+        headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+    };
 
-  const okLogin = check(loginRes, {
-    'login status 200': (r) => r.status === 200,
-    'login returned token': (r) => {
-      try {
-        const j = r.json();
-        return !!(j && (j.token || j.accessToken || (j.data && j.data.token)));
-      } catch {
-        return false;
-      }
-    },
-  });
+    // [SỬA ĐỔI] Sử dụng biến API_BASE_URL và đường dẫn đầy đủ
+    const loginRes = http.post(`${API_BASE_URL}/api/auth/login`, loginPayload, httpParams);
 
-  if (!okLogin) {
-    failedRequests.add(1);
-    totalFailures++;
-    checkStop();
-    sleep(1);
-    return;
-  } else {
-    successfulRequests.add(1);
-  }
+    const loginCheck = check(loginRes, {
+        'Login successful (status 200)': (r) => r.status === 200,
+        'Got auth cookie "jwt"': (r) => r.cookies.jwt && r.cookies.jwt.length > 0,
+    });
 
-  // ---- PROTECTED ENDPOINT ----
-  let token = null;
-  try {
-    const body = loginRes.json();
-    token = body.token || body.accessToken || (body.data && body.data.token);
-  } catch {}
+    console.log(`🔹 Login URL: ${API_BASE_URL}/api/auth/login`);
 
-  const res = http.get(`${BASE_URL}/api/users/me`, {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : '',
-      'Content-Type': 'application/json',
-    },
-    timeout: TIMEOUT,
-  });
+    if (!loginCheck) {
+        console.error(`VU ${__VU} (User ${user.gmail}) đăng nhập thất bại: ${loginRes.body}`);
+        return; 
+    }
 
-  requestDuration.add(res.timings.duration);
+    const authTokenCookieValue = loginRes.cookies.jwt[0].value;
 
-  const ok = check(res, {
-    'me status 200': (r) => r.status === 200,
-    'me body not empty': (r) => r.body && r.body.length > 0,
-  });
+    // -----------------------------------------------------------------
+    // ---- BƯỚC B: LẤY STREAM TOKEN (HTTP) ----
+    // -----------------------------------------------------------------
+    const streamTokenParams = {
+        cookies: {
+            jwt: authTokenCookieValue,
+        },
+        headers: {
+            'Accept': 'application/json',
+        },
+    };
 
-  if (!ok) {
-    failedRequests.add(1);
-    totalFailures++;
-  }
+    // [SỬA ĐỔI] Sử dụng biến API_BASE_URL và đường dẫn đầy đủ
+    const streamTokenRes = http.get(`${API_BASE_URL}/api/chat/token`, streamTokenParams);
 
-  checkStop();
+    const streamTokenCheck = check(streamTokenRes, {
+        'Get Stream Token successful (status 200)': (r) => r.status === 200,
+        'Got Stream Token': (r) => r.json('token') !== undefined,
+    });
 
-  if (__VU % 10 === 0 && __VU !== lastPrintedVU) {
-    console.log(`🧍 Running ${__VU} concurrent users...`);
-    lastPrintedVU = __VU;
-  }
+    if (!streamTokenCheck) {
+        console.error(`VU ${__VU} (User ${user.gmail}) lấy stream token thất bại: ${streamTokenRes.body}`);
+        return;
+    }
 
-  sleep(1);
-}
+    const streamToken = streamTokenRes.json('token');
 
-// ================= STOP CONDITION =================
-function checkStop() {
-  const failureRate = totalFailures / totalRequests;
-  if (failureRate <= FAIL_LIMIT) {
-    maxStableUsers = Math.max(maxStableUsers, __VU);
-  }
+    // -----------------------------------------------------------------
+    // ---- BƯỚC C: KẾT NỐI WEBSOCKET ----
+    // -----------------------------------------------------------------
+    
+    // Tự động thay thế http://... thành ws://...
+    const wsBase = WS_BASE_URL.replace('http', 'ws');
+    
+    // [SỬA ĐỔI] Sử dụng đường dẫn /socket
+    const wsUrl = `${wsBase}/socket?token=${streamToken}`; // Đường dẫn socket
+    
+    const res = ws.connect(wsUrl, null, function (socket) {
+        let messageInterval;
+        socket.on('open', () => {
+            socket.send(JSON.stringify({ event: 'join_room', room_id: 'general' }));
+            messageInterval = socket.setInterval(() => {
+                const message = `Message from VU ${__VU} at ${new Date().toISOString()}`;
+                socket.send(JSON.stringify({ 
+                    event: 'send_message', 
+                    room_id: 'general',
+                    content: message
+                }));
+            }, CHAT_MESSAGE_INTERVAL_MS + (Math.random() * 2000));
+        });
+        socket.on('error', (e) => {
+            console.error(`VU ${__VU} (User ${user.gmail}) WS Error: ${e.error()}`);
+        });
+        socket.setTimeout(() => {
+            socket.close(1000, "Session duration ended");
+        }, SESSION_DURATION_MS);
+        socket.on('close', (code) => {
+             if (messageInterval) {
+                socket.clearInterval(messageInterval);
+             }
+        });
+    });
 
-  if (failureRate > FAIL_LIMIT) {
-    console.error(
-      `❌ Too many failures (${(failureRate * 100).toFixed(2)}%). Max stable users ≈ ${maxStableUsers}`
-    );
-    fail(`Stop test: Failure rate exceeded ${FAIL_LIMIT * 100}%`);
-  }
+    // Tên check này phải khớp 100% với tên trong 'thresholds'
+    check(res, { 'WebSocket connection established': (r) => r && r.status === 101 });
 }
