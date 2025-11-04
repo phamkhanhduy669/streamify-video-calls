@@ -12,7 +12,7 @@ metadata:
     argocd-image-updater.argoproj.io/frontend.force-update: "true"
     argocd-image-updater.argoproj.io/write-back-method: argocd
 spec:
-  project: streamify
+  project: default
   source:
     repoURL: https://github.com/phamkhanhduy669/streamify-video-calls
     targetRevision: HEAD
