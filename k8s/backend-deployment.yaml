@@ -24,6 +24,7 @@ spec:
         ports:
         - containerPort: 5001
           name: http
+          hostPort: 5001
         envFrom:
         - configMapRef:
             name: streamify-config
