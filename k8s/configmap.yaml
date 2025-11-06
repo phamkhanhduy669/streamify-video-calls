@@ -6,3 +6,5 @@ metadata:
 data:
   PORT: "5001"
   NODE_ENV: "production"
+  GOOGLE_CALLBACK_URL: "http://localhost:5001/api/auth/google/callback"
+  FRONTEND_URL: "http://localhost:5173"
