@@ -2,6 +2,46 @@ import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
 import { upsertStreamUser } from "../lib/stream.js";
 
+export const deleteFriend = async (req, res) => {
+  try {
+    const { id: friendId } = req.params;
+    const userId = req.user._id; 
+
+    // 1. Tìm cả hai user
+    const user = await User.findById(userId);
+    const friend = await User.findById(friendId);
+
+    if (!friend) {
+      return res.status(404).json({ message: "Friend not found" });
+    }
+
+    // 2. Xóa khỏi mảng 'friends' của cả hai (với kiểm tra an toàn || [])
+    user.friends = (user.friends || []).filter(
+      (id) => id.toString() !== friendId
+    );
+    friend.friends = (friend.friends || []).filter(
+      (id) => id.toString() !== userId.toString()
+    );
+
+    // 3. ✨ QUAN TRỌNG: Xóa tất cả các lời mời kết bạn (cũ) 
+    await FriendRequest.deleteMany({
+      $or: [
+        { sender: userId, recipient: friendId },
+        { sender: friendId, recipient: userId },
+      ],
+    });
+
+    // 4. Lưu lại thay đổi
+    await user.save();
+    await friend.save();
+
+    res.status(200).json({ message: "Friend deleted and requests reset" });
+  } catch (error) {
+    console.error("Error deleting friend:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export async function getRecommendedUsers(req, res) {
   try {
     const currentUserId = req.user.id;

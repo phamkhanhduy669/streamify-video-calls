@@ -9,6 +9,7 @@ import {
   sendFriendRequest,
   getProfile,
   updateProfile,
+  deleteFriend,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -27,5 +28,5 @@ router.put("/me", updateProfile);
 
 router.get("/friend-requests", getFriendRequests);
 router.get("/outgoing-friend-requests", getOutgoingFriendReqs);
-
+router.delete("/friends/:id", deleteFriend);
 export default router;
