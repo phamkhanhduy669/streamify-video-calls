@@ -9,7 +9,7 @@ import userRoutes from "./routes/user.route.js";
 import chatRoutes from "./routes/chat.route.js";
 
 import { connectDB } from "./lib/db.js";
-import "./lib/passport.config.js"; 
+import "./lib/passport.config.js";
 import passport from "passport";
 const app = express();
 const PORT = process.env.PORT;
@@ -18,7 +18,7 @@ const __dirname = path.resolve();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials: true, // allow frontend to send cookies
   })
 );
