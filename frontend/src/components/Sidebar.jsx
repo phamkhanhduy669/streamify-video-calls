@@ -10,7 +10,11 @@ const Sidebar = () => {
     queryFn: getFriendRequests,
   });
   const notificationCount = notificationData?.incomingReqs?.length || 0;
-    const { unreadCount } = useStreamChat();
+  const { unreadMap } = useStreamChat();
+  const unreadCount = Object.values(unreadMap || {}).reduce(
+    (acc, count) => acc + count,
+    0
+  );
   const { authUser } = useAuthUser();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -39,7 +43,7 @@ const Sidebar = () => {
 
         <Link
           to="/friends"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case relative${
             currentPath === "/friends" ? "btn-active" : ""
           }`}
         >
@@ -55,7 +59,7 @@ const Sidebar = () => {
 
         <Link
           to="/notifications"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case relative ${
             currentPath === "/notifications" ? "btn-active" : ""
           }`}
         >
