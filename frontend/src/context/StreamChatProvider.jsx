@@ -9,8 +9,7 @@ const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 const StreamChatContext = createContext();
 
 export const StreamChatProvider = ({ children }) => {
-  const [chatClient, setChatClient] = useState(null);
-  // ✅ SỬA LỖI 1: Luôn giữ 'isChatClientReady'
+  const [chatClient, setChatClient] = useState(null);
   const [isChatClientReady, setIsChatClientReady] = useState(false); 
   const [unreadMap, setUnreadMap] = useState({});
   const { authUser } = useAuthUser();

@@ -11,10 +11,7 @@ const Sidebar = () => {
   });
   const notificationCount = notificationData?.incomingReqs?.length || 0;
   const { unreadMap } = useStreamChat();
-  const unreadCount = Object.values(unreadMap || {}).reduce(
-    (acc, count) => acc + count,
-    0
-  );
+  const unreadCount = Object.values(unreadMap || {}).reduce((acc,count) => acc + count,0);
   const { authUser } = useAuthUser();
   const location = useLocation();
   const currentPath = location.pathname;
