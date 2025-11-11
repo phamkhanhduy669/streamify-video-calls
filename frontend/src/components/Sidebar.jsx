@@ -62,10 +62,10 @@ const Sidebar = () => {
           <BellIcon className="size-5 text-base-content opacity-70" />
           <span>Notifications</span>
           {notificationCount > 0 && (
-            <span className="absolute top-2 right-4 badge badge-error badge-sm">
-              {notificationCount}
-            </span>
-          )}
+      <span className="absolute top-2 right-4 badge badge-error badge-sm">
+       {notificationCount}
+      </span>
+     )}
         </Link>
       </nav>
 
