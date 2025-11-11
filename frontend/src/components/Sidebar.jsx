@@ -2,8 +2,14 @@ import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon } from "lucide-react";
 import { useStreamChat } from "../context/StreamChatProvider";
-
+import { useQuery } from "@tanstack/react-query";
+import { getFriendRequests } from "../lib/api";
 const Sidebar = () => {
+  const { data: notificationData } = useQuery({
+    queryKey: ["friendRequests"],
+    queryFn: getFriendRequests,
+  });
+  const notificationCount = notificationData?.incomingReqs?.length || 0;
     const { unreadCount } = useStreamChat();
   const { authUser } = useAuthUser();
   const location = useLocation();
@@ -55,6 +61,11 @@ const Sidebar = () => {
         >
           <BellIcon className="size-5 text-base-content opacity-70" />
           <span>Notifications</span>
+          {notificationCount > 0 && (
+            <span className="absolute top-2 right-4 badge badge-error badge-sm">
+              {notificationCount}
+            </span>
+          )}
         </Link>
       </nav>
 
