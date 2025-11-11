@@ -1,6 +1,6 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
-import { upsertStreamUser } from "../lib/stream.js";
+import { streamClient, upsertStreamUser } from "../lib/stream.js"
 
 export const deleteFriend = async (req, res) => {
   try {
@@ -77,6 +77,7 @@ export async function getMyFriends(req, res) {
 export async function sendFriendRequest(req, res) {
   try {
     const myId = req.user.id;
+    const sender = req.user
     const { id: recipientId } = req.params;
 
     // prevent sending req to yourself
@@ -112,6 +113,25 @@ export async function sendFriendRequest(req, res) {
       sender: myId,
       recipient: recipientId,
     });
+    // ✅ SỬA 2: GỬI SỰ KIỆN CUSTOM (NOTIFICATION)
+    // Gửi 1 sự kiện tên là "friendrequest_new"
+    // CHỈ cho user có ID là 'recipientId'
+    try {
+      await streamClient.sendUserCustomEvent(recipientId, {
+        type: "friendrequest_new", // Tên sự kiện
+        payload: {
+          sender: { // Gửi kèm thông tin người gửi
+            id: sender.id,
+            name: sender.fullName,
+            image: sender.profilePic,
+          },
+        },
+      });
+      console.log(`[Stream] Đã gửi sự kiện 'friendrequest_new' tới ${recipientId}`);
+    } catch (eventError) {
+      console.error("[Stream] Lỗi gửi sự kiện custom:", eventError);
+      // Không cần 'return' lỗi, vì lời mời đã được lưu
+    }
 
     res.status(201).json(friendRequest);
   } catch (error) {

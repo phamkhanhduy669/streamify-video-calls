@@ -2,9 +2,16 @@ import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon } from "lucide-react";
 import { useStreamChat } from "../context/StreamChatProvider";
-
+import { useQuery } from "@tanstack/react-query";
+import { getFriendRequests } from "../lib/api";
 const Sidebar = () => {
-    const { unreadCount } = useStreamChat();
+  const { data: notificationData } = useQuery({
+    queryKey: ["friendRequests"],
+    queryFn: getFriendRequests,
+  });
+  const notificationCount = notificationData?.incomingReqs?.length || 0;
+  const { unreadMap } = useStreamChat();
+  const unreadCount = Object.values(unreadMap || {}).reduce((acc,count) => acc + count,0);
   const { authUser } = useAuthUser();
   const location = useLocation();
   const currentPath = location.pathname;
@@ -33,7 +40,7 @@ const Sidebar = () => {
 
         <Link
           to="/friends"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case relative${
             currentPath === "/friends" ? "btn-active" : ""
           }`}
         >
@@ -49,12 +56,17 @@ const Sidebar = () => {
 
         <Link
           to="/notifications"
-          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case relative ${
             currentPath === "/notifications" ? "btn-active" : ""
           }`}
         >
           <BellIcon className="size-5 text-base-content opacity-70" />
           <span>Notifications</span>
+          {notificationCount > 0 && (
+      <span className="absolute top-2 right-4 badge badge-error badge-sm">
+       {notificationCount}
+      </span>
+     )}
         </Link>
       </nav>
 
