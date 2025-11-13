@@ -58,15 +58,17 @@ export const StreamChatProvider = ({ children }) => {
           try {
             const audio = new Audio("/sound/notification.mp3");
             audio.play().catch(() => {});
-          } catch {}
-          if (!event.channel) {
-            console.warn("[StreamChat] event.channel is undefined", event);
+          } catch {
+            // ignore audio error
+          }
+          if (!event.channel || !event.channel.state?.members) {
+            console.warn("[StreamChat] event.channel is undefined or missing members", event);
             const memberCount = event.channel_member_count || 2;
             const channelName = event.channel_custom?.name || event.cid || "Group";
             if (memberCount > 2) {
-              toast(`💬 Tin nhắn mới trong nhóm: ${channelName}`);
+              toast(`💬 New group message in ${channelName}`);
             } else {
-              toast(`💬 Tin nhắn mới từ ${event.user.name}`);
+              toast(`💬 New message from ${event.user.name}`);
             }
             return;
           }
@@ -84,13 +86,13 @@ export const StreamChatProvider = ({ children }) => {
               `💬 Tin nhắn mới trong nhóm: ${channelName || "Group"}`
             );
           } else {
-            toast(`💬 Tin nhắn mới từ ${event.user.name}`);
+            toast(`💬 New message from ${event.user.name}`);
           }
         });
 
         client.on("friendrequest_new", (event) => {
-          const senderName = event.payload?.sender?.name || "Một ai đó";
-          toast.success(`💌 ${senderName} đã gửi cho bạn lời mời kết bạn!`);
+          const senderName = event.payload?.sender?.name || "Someone";
+          toast.success(`💌 ${senderName} sent you a friend request!`);
           queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
         });
 
@@ -99,8 +101,10 @@ export const StreamChatProvider = ({ children }) => {
             try {
               const audio = new Audio("/sound/notification.mp3");
               audio.play().catch(() => {});
-            } catch {}
-            toast.success("Bạn vừa được thêm vào một nhóm chat!");
+            } catch {
+              // ignore audio error
+            }
+            toast.success("You have been added to a chat group!");
           }
         });
 

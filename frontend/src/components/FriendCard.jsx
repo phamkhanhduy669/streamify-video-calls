@@ -41,13 +41,13 @@ const FriendCard = ({ friend, onDelete }) => {
     }
   };
 
-  // 🔔 Check unread messages
+  // 🔔 Check unread messages & listen for events
   useEffect(() => {
-  if (!chatClient || !chatClient.user || !friend?._id) return;
+    if (!chatClient || !chatClient.user || !friend?._id) return;
 
-  const channelId = getChannelId();
-  if (!channelId) return;
-  const channel = chatClient.channel("messaging", channelId);
+    const channelId = getChannelId();
+    if (!channelId) return;
+    const channel = chatClient.channel("messaging", channelId);
 
     const checkUnread = async () => {
       try {
@@ -58,28 +58,29 @@ const FriendCard = ({ friend, onDelete }) => {
         console.warn("Unread check error:", err);
       }
     };
-
     checkUnread();
 
     // 🟢 Listen for new messages
-    channel.on("message.new", (event) => {
+    const onMessageNew = (event) => {
       if (event.user.id !== chatClient.user.id) {
         setHasUnread(true);
       }
-    });
+    };
+    channel.on("message.new", onMessageNew);
 
     // 🟣 Listen for read events
-    channel.on("message.read", (event) => {
+    const onMessageRead = (event) => {
       if (event.user.id === chatClient.user.id) {
         setHasUnread(false);
       }
-    });
+    };
+    channel.on("message.read", onMessageRead);
 
     return () => {
-      channel.off("message.new");
-      channel.off("message.read");
+      channel.off("message.new", onMessageNew);
+      channel.off("message.read", onMessageRead);
     };
-  }, [chatClient, friend]);
+  }, [chatClient, friend?._id, getChannelId]);
 
   return (
     <div className="card h-full bg-base-200 hover:shadow-md transition-shadow">
