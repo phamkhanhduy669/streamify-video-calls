@@ -8,7 +8,6 @@ const GroupSettingsModal = ({ channel, onClose, currentUserId }) => {
   const [members, setMembers] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     if (channel) {
