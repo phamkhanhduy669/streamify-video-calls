@@ -51,19 +51,24 @@ useEffect(() => {
        );
         }
 
-    // 🔔 Lắng nghe tin nhắn chat mới (bạn đã có)
-    client.on("message.new", (event) => {
-     if (event.user.id === authUser._id) return;
-     const senderId = event.user.id;
-     setUnreadMap((prev) => ({
-      ...prev,
-      [senderId]: (prev[senderId] || 0) + 1,
-     }));
-     // (toast, audio...)
-     const audio = new Audio("/sound/notification.mp3");
-     audio.play().catch(() => {});
-     toast(`💬 Tin nhắn mới từ ${event.user.name}`);
-    });
+        // 🔔 Lắng nghe tin nhắn chat mới
+        client.on("message.new", (event) => {
+            if (event.user.id === authUser._id) return;
+            const senderId = event.user.id;
+            setUnreadMap((prev) => ({
+                ...prev,
+                [senderId]: (prev[senderId] || 0) + 1,
+            }));
+            try {
+                const audio = new Audio("/sound/notification.mp3");
+                audio.play().catch((err) => {
+                    console.warn("Không thể phát âm thanh thông báo tin nhắn:", err);
+                });
+            } catch (err) {
+                console.warn("Lỗi khi tạo audio thông báo tin nhắn:", err);
+            }
+            toast(`💬 Tin nhắn mới từ ${event.user.name}`);
+        });
 
         // ✅ TÍNH NĂNG MỚI: Lắng nghe LỜI MỜI KẾT BẠN MỚI
         client.on("friendrequest_new", (event) => {
@@ -72,8 +77,22 @@ useEffect(() => {
           queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
         });
 
-    setChatClient(client);
-    setIsChatClientReady(true); // ✅ Đánh dấu sẵn sàng
+        // 🔔 Lắng nghe sự kiện được thêm vào nhóm
+        client.on("member.added", (event) => {
+            if (event.user?.id === authUser._id) {
+                try {
+                    const audio = new Audio("/sound/notification.mp3");
+                    audio.play().catch((err) => {
+                        console.warn("Không thể phát âm thanh thông báo nhóm:", err);
+                    });
+                } catch (err) {
+                    console.warn("Lỗi khi tạo audio thông báo nhóm:", err);
+                }
+                toast.success("Bạn vừa được thêm vào một nhóm chat!");
+            }
+        });
+        setChatClient(client);
+        setIsChatClientReady(true); // ✅ Đánh dấu sẵn sàng
    } catch (error) {
     console.error("Lỗi kết nối Stream chat:", error);
         setIsChatClientReady(false);

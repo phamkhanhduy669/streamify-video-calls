@@ -5,7 +5,6 @@ import useAuthUser from "../hooks/useAuthUser";
 
 import {
   Channel,
-  ChannelHeader,
   Chat,
   MessageInput,
   MessageList,
@@ -16,39 +15,36 @@ import {
 import ChatLoader from "../components/ChatLoader";
 import CallButton from "../components/CallButton";
 import toast from "react-hot-toast";
+import CustomChannelHeader from "../components/CustomChannelHeader";
 
 const ChatPage = () => {
-  const { id: targetUserId } = useParams();
+  const { id: channelId } = useParams();
   const { chatClient } = useStreamChat();
   const { authUser } = useAuthUser();
 
   const [channel, setChannel] = useState(null);
-  const [loading, setLoading] = useState(true);
 
+  // Khi channelId thay đổi, luôn gọi lại channel.watch và reset state
   useEffect(() => {
     if (!chatClient || !chatClient.user || !authUser) return;
-    
 
     const setupChannel = async () => {
       if (!chatClient || !authUser) {
         console.warn("⚠️ chatClient hoặc authUser chưa sẵn sàng");
         return;
       }
-
-      // 🔹 Chờ cho tới khi connectUser hoàn tất
       if (!chatClient.user) {
         console.warn("⚠️ Chat client chưa connectUser, chờ 500ms...");
         setTimeout(setupChannel, 500);
         return;
       }
-
-
       try {
-        const channelId = [authUser._id, targetUserId].sort().join("-");
-        const currChannel = chatClient.channel("messaging", channelId, {
-          members: [authUser._id, targetUserId],
-        });
-
+        if (!channelId) {
+          console.warn("⚠️ channelId chưa được cung cấp trong route");
+          setLoading(false);
+          return;
+        }
+        const currChannel = chatClient.channel("messaging", channelId);
         await currChannel.watch();
         await currChannel.markRead();
         setChannel(currChannel);
@@ -59,12 +55,68 @@ const ChatPage = () => {
         setLoading(false);
       }
     };
-
     setupChannel();
-  }, [chatClient, authUser, targetUserId]);
+    return () => {
+      setChannel(null);
+      setLoading(true);
+    };
+  }, [chatClient, authUser, channelId]);
+
+  // Nếu bị kick khỏi nhóm, văng về trang chủ
+  useEffect(() => {
+    if (!channel || !chatClient?.user?.id) return;
+    const handleMemberRemoved = (event) => {
+      if (event.user?.id === chatClient.user.id) {
+        window.location.href = "/";
+      }
+    };
+    channel.on('member.removed', handleMemberRemoved);
+    return () => {
+      channel.off('member.removed', handleMemberRemoved);
+    };
+  }, [channel, chatClient]);
+  const [loading, setLoading] = useState(true);
+
+  // Khi channelId thay đổi, luôn gọi lại channel.watch và reset state
+  useEffect(() => {
+    if (!chatClient || !chatClient.user || !authUser) return;
+
+    const setupChannel = async () => {
+      if (!chatClient || !authUser) {
+        console.warn("⚠️ chatClient hoặc authUser chưa sẵn sàng");
+        return;
+      }
+      if (!chatClient.user) {
+        console.warn("⚠️ Chat client chưa connectUser, chờ 500ms...");
+        setTimeout(setupChannel, 500);
+        return;
+      }
+      try {
+        if (!channelId) {
+          console.warn("⚠️ channelId chưa được cung cấp trong route");
+          setLoading(false);
+          return;
+        }
+        const currChannel = chatClient.channel("messaging", channelId);
+        await currChannel.watch();
+        await currChannel.markRead();
+        setChannel(currChannel);
+      } catch (err) {
+        console.error("Chat channel setup error:", err);
+        toast.error("Could not load chat.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    setupChannel();
+    return () => {
+      setChannel(null);
+      setLoading(true);
+    };
+  }, [chatClient, authUser, channelId]);
+
 
   if (loading || !chatClient || !channel) return <ChatLoader />;
-
   const handleVideoCall = () => {
     const callUrl = `${window.location.origin}/call/${channel.id}`;
     channel.sendMessage({
@@ -80,7 +132,7 @@ const ChatPage = () => {
           <div className="w-full relative">
             <CallButton handleVideoCall={handleVideoCall} />
             <Window>
-              <ChannelHeader />
+              <CustomChannelHeader />
               <MessageList />
               <MessageInput focus />
             </Window>

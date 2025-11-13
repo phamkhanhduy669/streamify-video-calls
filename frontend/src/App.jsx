@@ -10,6 +10,7 @@ import ChatPage from "./pages/ChatPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import FriendPage from "./pages/FriendPage.jsx";
+import GroupsPage from "./components/GroupPage.jsx";
 import PageLoader from "./components/PageLoader.jsx";
 import useAuthUser from "./hooks/useAuthUser.js";
 import Layout from "./components/Layout.jsx";
@@ -139,6 +140,20 @@ const App = () => {
             )
           }
         />
+        {/* 👨‍👩‍👧‍👦 Groups (ĐOẠN MỚI) */}
+        <Route
+          path="/groups"
+          element={
+            isAuthenticated && isOnboarded ? (
+              <Layout showSidebar={true}>
+                <GroupsPage />
+              </Layout>
+            ) : (
+              <Navigate to={!isAuthenticated ? "/login" : "/onboarding"} />
+            )
+          }
+        />
+
       </Routes>
 
       <Toaster />
