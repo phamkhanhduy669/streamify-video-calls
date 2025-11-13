@@ -108,7 +108,7 @@ const FriendCard = ({ friend, onDelete }) => {
         {/* ACTION BUTTONS */}
         <div className="flex gap-2 mt-2">
           <Link
-            to={`/chat/${friend._id}`}
+            to={`/chat/${[chatClient.user.id, friend._id].sort().join("-")}`}
             className="btn btn-outline flex-1 relative"
           >
             Message
