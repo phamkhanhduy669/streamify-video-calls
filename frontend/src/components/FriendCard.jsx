@@ -28,6 +28,12 @@ const FriendCard = ({ friend, onDelete }) => {
   const [hasUnread, setHasUnread] = useState(false);
   const bio = safeBio(friend.bio);
 
+  // Helper: get channelId safely
+  const getChannelId = () => {
+    if (!chatClient || !chatClient.user || !friend?._id) return null;
+    return [chatClient.user.id, friend._id].sort().join("-");
+  };
+
   // 🧩 Handle Delete
   const handleDelete = () => {
     if (window.confirm(`Are you sure you want to delete your friend ${friend.fullName}?`)) {
@@ -37,10 +43,11 @@ const FriendCard = ({ friend, onDelete }) => {
 
   // 🔔 Check unread messages
   useEffect(() => {
-    if (!chatClient || !friend?._id) return;
+  if (!chatClient || !chatClient.user || !friend?._id) return;
 
-    const channelId = [chatClient.user.id, friend._id].sort().join("-");
-    const channel = chatClient.channel("messaging", channelId);
+  const channelId = getChannelId();
+  if (!channelId) return;
+  const channel = chatClient.channel("messaging", channelId);
 
     const checkUnread = async () => {
       try {
@@ -108,8 +115,9 @@ const FriendCard = ({ friend, onDelete }) => {
         {/* ACTION BUTTONS */}
         <div className="flex gap-2 mt-2">
           <Link
-            to={`/chat/${[chatClient.user.id, friend._id].sort().join("-")}`}
+            to={getChannelId() ? `/chat/${getChannelId()}` : "#"}
             className="btn btn-outline flex-1 relative"
+            disabled={!getChannelId()}
           >
             Message
             {/* 🔴 Unread indicator */}
