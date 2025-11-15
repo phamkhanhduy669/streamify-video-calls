@@ -12,6 +12,7 @@ import { connectDB } from "./lib/db.js";
 import "./lib/passport.config.js";
 import passport from "passport";
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT;
 
 const __dirname = path.resolve();
