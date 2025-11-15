@@ -23,7 +23,6 @@ spec:
         ports:
         - containerPort: 80
           name: http
-          hostPort: 5173
         resources:
           requests:
             cpu: 50m

@@ -4,15 +4,10 @@ metadata:
   name: streamify-ingress
   namespace: streamify
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
-  tls:
-    - hosts:
-        - app.local
-      secretName: streamify-tls
   rules:
-    - host: app.local
+    - host: streamifyapp.id.vn
       http:
         paths:
           - path: /
