@@ -4,6 +4,9 @@ metadata:
   name: streamify-ingress
   namespace: streamify
   annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/scheme: internet-facing
 spec:
   rules:
     - host: streamifyapp.id.vn

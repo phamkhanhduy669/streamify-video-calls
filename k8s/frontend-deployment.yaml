@@ -4,7 +4,7 @@ metadata:
   name: streamify-frontend
   namespace: streamify
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: streamify-frontend
