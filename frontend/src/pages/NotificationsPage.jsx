@@ -1,16 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { acceptFriendRequest, getFriendRequests } from "../lib/api";
+import { acceptFriendRequest, getFriendRequests, markNotificationRead } from "../lib/api"; // Đảm bảo import đủ
 import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon } from "lucide-react";
 import NoNotificationsFound from "../components/NoNotificationsFound";
 
 const NotificationsPage = () => {
   const queryClient = useQueryClient();
 
+  // 1. Lấy dữ liệu
   const { data: friendRequests, isLoading } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: getFriendRequests,
   });
 
+  // 2. Hàm chấp nhận kết bạn
   const { mutate: acceptRequestMutation, isPending } = useMutation({
     mutationFn: acceptFriendRequest,
     onSuccess: () => {
@@ -19,8 +21,46 @@ const NotificationsPage = () => {
     },
   });
 
+  // 3. Hàm đánh dấu đã đọc (Có thêm Log Error)
+  const { mutate: markRead } = useMutation({
+    mutationFn: markNotificationRead,
+    onSuccess: () => {
+      console.log("✅ API báo thành công! Đang refresh lại list...");
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+    },
+    onError: (err) => {
+      console.error("❌ Lỗi khi gọi API markRead:", err);
+    }
+  });
+
+  // Hàm tính thời gian
+  const formatTime = (dateString) => {
+    if (!dateString) return "Recently";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    if (diffInSeconds < 60) return "Recently";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    return `${Math.floor(diffInSeconds / 86400)} days ago`;
+  };
+
   const incomingRequests = friendRequests?.incomingReqs || [];
   const acceptedRequests = friendRequests?.acceptedReqs || [];
+
+  // Hàm xử lý click (Tách riêng để dễ debug)
+  const handleNotificationClick = (notification) => {
+    console.log("🖱️ Đã click vào thông báo:", notification._id);
+    console.log("👉 Trạng thái hiện tại - read:", notification.read);
+
+    if (notification.read) {
+      console.log("⚠️ Thông báo này đã đọc rồi -> Không gọi API.");
+      return;
+    }
+    
+    console.log("🚀 Đang gọi hàm markRead...");
+    markRead(notification._id);
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -33,6 +73,7 @@ const NotificationsPage = () => {
           </div>
         ) : (
           <>
+            {/* SECTION 1: Friend Requests (Giữ nguyên) */}
             {incomingRequests.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -40,40 +81,25 @@ const NotificationsPage = () => {
                   Friend Requests
                   <span className="badge badge-primary ml-2">{incomingRequests.length}</span>
                 </h2>
-
                 <div className="space-y-3">
                   {incomingRequests.map((request) => (
-                    <div
-                      key={request._id}
-                      className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
-                    >
+                    <div key={request._id} className="card bg-base-200 shadow-sm">
                       <div className="card-body p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="avatar w-14 h-14 rounded-full bg-base-300">
-                              <img src={request.sender.profilePic} alt={request.sender.fullName} />
+                         {/* Nội dung friend request giữ nguyên */}
+                         <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="avatar w-14 h-14 rounded-full">
+                                    <img src={request.sender.profilePic || "/avatar.png"} alt={request.sender.fullName} />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold">{request.sender.fullName}</h3>
+                                    <p className="text-xs">Sent you a friend request</p>
+                                </div>
                             </div>
-                            <div>
-                              <h3 className="font-semibold">{request.sender.fullName}</h3>
-                              <div className="flex flex-wrap gap-1.5 mt-1">
-                                <span className="badge badge-secondary badge-sm">
-                                  Native: {request.sender.nativeLanguage}
-                                </span>
-                                <span className="badge badge-outline badge-sm">
-                                  Learning: {request.sender.learningLanguage}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => acceptRequestMutation(request._id)}
-                            disabled={isPending}
-                          >
-                            Accept
-                          </button>
-                        </div>
+                            <button className="btn btn-primary btn-sm" onClick={() => acceptRequestMutation(request._id)} disabled={isPending}>
+                                Accept
+                            </button>
+                         </div>
                       </div>
                     </div>
                   ))}
@@ -81,7 +107,7 @@ const NotificationsPage = () => {
               </section>
             )}
 
-            {/* ACCEPTED REQS NOTIFICATONS */}
+            {/* SECTION 2: Accepted Requests (CÓ DEBUG LOG) */}
             {acceptedRequests.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -91,29 +117,43 @@ const NotificationsPage = () => {
 
                 <div className="space-y-3">
                   {acceptedRequests.map((notification) => (
-                    <div key={notification._id} className="card bg-base-200 shadow-sm">
+                    <div 
+                      key={notification._id} 
+                      // 👇 SỬA Ở ĐÂY: Gọi hàm handleNotificationClick
+                      onClick={() => handleNotificationClick(notification)}
+                      className={`card shadow-sm transition-all cursor-pointer border ${notification.read ? 'bg-base-100 opacity-60 border-transparent' : 'bg-base-200 hover:shadow-md border-base-300'}`}
+                    >
                       <div className="card-body p-4">
                         <div className="flex items-start gap-3">
                           <div className="avatar mt-1 size-10 rounded-full">
                             <img
-                              src={notification.recipient.profilePic}
+                              src={notification.recipient.profilePic || "/avatar.png"}
                               alt={notification.recipient.fullName}
                             />
                           </div>
                           <div className="flex-1">
-                            <h3 className="font-semibold">{notification.recipient.fullName}</h3>
+                            <h3 className={`font-semibold ${!notification.read && 'text-primary'}`}>
+                                {notification.recipient.fullName}
+                            </h3>
                             <p className="text-sm my-1">
                               {notification.recipient.fullName} accepted your friend request
                             </p>
                             <p className="text-xs flex items-center opacity-70">
                               <ClockIcon className="h-3 w-3 mr-1" />
-                              Recently
+                              {formatTime(notification.updatedAt)} 
                             </p>
                           </div>
-                          <div className="badge badge-success">
-                            <MessageSquareIcon className="h-3 w-3 mr-1" />
-                            New Friend
-                          </div>
+                          
+                          {!notification.read ? (
+                             <div className="badge badge-success text-white gap-1">
+                                <MessageSquareIcon className="h-3 w-3" />
+                                New
+                             </div>
+                          ) : (
+                             <div className="badge badge-ghost gap-1 opacity-50">
+                                Seen
+                             </div>
+                          )}
                         </div>
                       </div>
                     </div>

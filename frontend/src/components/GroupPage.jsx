@@ -102,7 +102,7 @@ const GroupChannelList = ({ openCreateModal }) => {
         const sort = [{ last_message_at: -1 }];
   const channels = await chatClient.queryChannels(filters, sort, { limit: 20 });
   // Lọc bỏ nhóm chỉ có 2 thành viên
-  const filtered = channels.filter(c => Object.keys(c.state.members).length > 2);
+  const filtered = channels.filter(c => Object.keys(c.state.members).length >= 2);
   setGroups(filtered);
       } catch (error) {
         console.error("Error fetching groups:", error);
