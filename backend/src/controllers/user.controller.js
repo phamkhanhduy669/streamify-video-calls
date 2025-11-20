@@ -295,3 +295,28 @@ export const searchUsers = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const markNotificationRead = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const userId = req.user._id;
+    
+    const updatedRequest = await FriendRequest.findOneAndUpdate(
+      {
+        _id: requestId,
+        $or: [{ sender: userId }, { recipient: userId }]
+      },
+      { read: true },
+      { new: true }
+    );
+
+    if (!updatedRequest) {
+      return res.status(404).json({ message: "Notification not found" });
+    }
+
+    res.status(200).json({ message: "Marked as read", data: updatedRequest });
+  } catch (error) {
+    console.log("Error in markNotificationRead:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};

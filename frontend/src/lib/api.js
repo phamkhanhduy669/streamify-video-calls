@@ -94,3 +94,7 @@ export const searchUsers = async (query) => {
     return [];
   }
 };
+export async function markNotificationRead(requestId) {
+  const response = await axiosInstance.delete(`/users/friend-request/read/${requestId}`);
+  return response.data;
+}
