@@ -10,6 +10,7 @@ import {
   getProfile,
   updateProfile,
   deleteFriend,
+  markNotificationRead,
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -29,4 +30,5 @@ router.put("/me", updateProfile);
 router.get("/friend-requests", getFriendRequests);
 router.get("/outgoing-friend-requests", getOutgoingFriendReqs);
 router.delete("/friends/:id", deleteFriend);
+router.delete("/friend-request/read/:requestId", markNotificationRead);
 export default router;

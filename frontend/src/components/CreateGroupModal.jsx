@@ -35,6 +35,7 @@ const CreateGroupModal = ({ onClose }) => {
   // Không phân quyền admin client-side (Stream API không cho phép)
 
       toast.success("Group created successfully!");
+      window.location.reload();
       onClose();
     } catch (err) {
       console.error("Error creating group:", err);

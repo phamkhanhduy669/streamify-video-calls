@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { acceptFriendRequest, getFriendRequests } from "../lib/api";
+import { acceptFriendRequest, getFriendRequests, markNotificationRead } from "../lib/api";
 import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon } from "lucide-react";
 import NoNotificationsFound from "../components/NoNotificationsFound";
 
@@ -19,6 +19,27 @@ const NotificationsPage = () => {
     },
   });
 
+  // Mutation đánh dấu đã đọc
+  const { mutate: markRead } = useMutation({
+    mutationFn: markNotificationRead,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
+    }
+  });
+
+  // --- HÀM TÍNH THỜI GIAN TỪ DATABASE ---
+  const formatTime = (dateString) => {
+    if (!dateString) return "Recently";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+
+    if (diffInSeconds < 60) return "recently";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    return `${Math.floor(diffInSeconds / 86400)} days ago`;
+  };
+
   const incomingRequests = friendRequests?.incomingReqs || [];
   const acceptedRequests = friendRequests?.acceptedReqs || [];
 
@@ -33,6 +54,7 @@ const NotificationsPage = () => {
           </div>
         ) : (
           <>
+            {/* SECTION 1: LỜI MỜI KẾT BẠN (Giữ nguyên) */}
             {incomingRequests.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -43,29 +65,25 @@ const NotificationsPage = () => {
 
                 <div className="space-y-3">
                   {incomingRequests.map((request) => (
-                    <div
-                      key={request._id}
-                      className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow"
-                    >
+                    <div key={request._id} className="card bg-base-200 shadow-sm hover:shadow-md transition-shadow">
                       <div className="card-body p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className="avatar w-14 h-14 rounded-full bg-base-300">
-                              <img src={request.sender.profilePic} alt={request.sender.fullName} />
+                              <img src={request.sender.profilePic || "/avatar.png"} alt={request.sender.fullName} />
                             </div>
                             <div>
                               <h3 className="font-semibold">{request.sender.fullName}</h3>
                               <div className="flex flex-wrap gap-1.5 mt-1">
-                                <span className="badge badge-secondary badge-sm">
-                                  Native: {request.sender.nativeLanguage}
-                                </span>
-                                <span className="badge badge-outline badge-sm">
-                                  Learning: {request.sender.learningLanguage}
-                                </span>
+                                {request.sender.nativeLanguage && (
+                                   <span className="badge badge-secondary badge-sm">Native: {request.sender.nativeLanguage}</span>
+                                )}
+                                {request.sender.learningLanguage && (
+                                   <span className="badge badge-outline badge-sm">Learning: {request.sender.learningLanguage}</span>
+                                )}
                               </div>
                             </div>
                           </div>
-
                           <button
                             className="btn btn-primary btn-sm"
                             onClick={() => acceptRequestMutation(request._id)}
@@ -81,7 +99,7 @@ const NotificationsPage = () => {
               </section>
             )}
 
-            {/* ACCEPTED REQS NOTIFICATONS */}
+            {/* SECTION 2: THÔNG BÁO ĐÃ CHẤP NHẬN (SỬA PHẦN NÀY) */}
             {acceptedRequests.length > 0 && (
               <section className="space-y-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -91,29 +109,47 @@ const NotificationsPage = () => {
 
                 <div className="space-y-3">
                   {acceptedRequests.map((notification) => (
-                    <div key={notification._id} className="card bg-base-200 shadow-sm">
+                    <div 
+                      key={notification._id} 
+                      // Logic: Bấm vào thì gọi API đánh dấu đã đọc
+                      onClick={() => !notification.read && markRead(notification._id)}
+                      // Logic giao diện: Đã đọc thì mờ đi, chưa đọc thì sáng rõ
+                      className={`card shadow-sm transition-all cursor-pointer ${notification.read ? 'bg-base-100 opacity-60' : 'bg-base-200 hover:shadow-md border border-base-300'}`}
+                    >
                       <div className="card-body p-4">
                         <div className="flex items-start gap-3">
                           <div className="avatar mt-1 size-10 rounded-full">
                             <img
-                              src={notification.recipient.profilePic}
+                              src={notification.recipient.profilePic || "/avatar.png"}
                               alt={notification.recipient.fullName}
                             />
                           </div>
                           <div className="flex-1">
-                            <h3 className="font-semibold">{notification.recipient.fullName}</h3>
+                            <h3 className={`font-semibold ${!notification.read && 'text-primary'}`}>
+                                {notification.recipient.fullName}
+                            </h3>
                             <p className="text-sm my-1">
                               {notification.recipient.fullName} accepted your friend request
                             </p>
+                            
+                            {/* 👇 ĐÃ SỬA: Lấy thời gian cập nhật từ Database */}
                             <p className="text-xs flex items-center opacity-70">
                               <ClockIcon className="h-3 w-3 mr-1" />
-                              Recently
+                              {formatTime(notification.updatedAt)} 
                             </p>
                           </div>
-                          <div className="badge badge-success">
-                            <MessageSquareIcon className="h-3 w-3 mr-1" />
-                            New Friend
-                          </div>
+                          
+                          {/* Badge trạng thái */}
+                          {!notification.read ? (
+                             <div className="badge badge-success text-white gap-1">
+                                <MessageSquareIcon className="h-3 w-3" />
+                                New
+                             </div>
+                          ) : (
+                             <div className="badge badge-ghost gap-1 opacity-50">
+                                Seen
+                             </div>
+                          )}
                         </div>
                       </div>
                     </div>

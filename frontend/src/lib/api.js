@@ -73,3 +73,8 @@ export async function getStreamToken() {
   const response = await axiosInstance.get("/chat/token");
   return response.data;
 }
+
+export async function markNotificationRead(requestId) {
+  const response = await axiosInstance.delete(`/users/friend-request/read/${requestId}`);
+  return response.data;
+}
