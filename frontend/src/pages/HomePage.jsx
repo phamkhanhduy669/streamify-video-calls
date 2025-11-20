@@ -27,11 +27,6 @@ const HomePage = () => {
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: friends = [], isLoading: loadingFriends } = useQuery({
-    queryKey: ["friends"],
-    queryFn: getUserFriends,
-  });
-
   const { data: recommendedUsers = [], isLoading: loadingRec } = useQuery({
     queryKey: ["users"],
     queryFn: getRecommendedUsers,
