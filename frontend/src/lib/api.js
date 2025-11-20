@@ -73,3 +73,24 @@ export async function getStreamToken() {
   const response = await axiosInstance.get("/chat/token");
   return response.data;
 }
+
+export const searchUsers = async (query) => {
+  // LOG 1: Kiểm tra xem hàm này có được gọi không
+  console.log("🚀 API searchUsers ĐƯỢC GỌI với từ khóa:", query);
+
+  if (!query) return [];
+
+  try {
+    // LOG 2: Báo hiệu trước khi gửi request
+    console.log("📡 Đang gửi axios request tới:", `/users/search?q=${query}`);
+    
+    const res = await axiosInstance.get(`/users/search?q=${query}`);
+    
+    // LOG 3: Báo hiệu khi có kết quả
+    console.log("✅ Kết quả trả về từ Server:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Lỗi khi gọi API Search:", error);
+    return [];
+  }
+};
