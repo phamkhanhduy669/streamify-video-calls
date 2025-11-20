@@ -10,6 +10,7 @@ import {
   getProfile,
   updateProfile,
   deleteFriend,
+  searchUsers
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -17,6 +18,13 @@ const router = express.Router();
 // apply auth middleware to all routes
 router.use(protectRoute);
 
+router.use((req, res, next) => {
+  console.log("========================================");
+  console.log(`⚡️ ROUTER NHẬN REQUEST: ${req.method} ${req.url}`);
+  console.log("========================================");
+  next();
+});
+router.get("/search", protectRoute, searchUsers);
 router.get("/", getRecommendedUsers);
 router.get("/friends", getMyFriends);
 

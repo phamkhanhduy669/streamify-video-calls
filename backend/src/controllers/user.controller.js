@@ -259,3 +259,39 @@ export async function updateProfile(req, res) {
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
+
+export const searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    const currentUserId = req.user._id;
+
+    // Log xem client gửi lên chữ gì
+    console.log(`🔍 Client đang tìm: "${q}"`);
+
+    if (!q) return res.status(200).json([]);
+
+    const users = await User.find({
+      _id: { $ne: currentUserId }, // Loại trừ bản thân
+      $or: [
+        // Tìm gần đúng, không phân biệt hoa thường (i = case insensitive)
+        { fullName: { $regex: q, $options: "i" } }, 
+        { email: { $regex: q, $options: "i" } },
+      ],
+    }).select("fullName profilePic email");
+
+    // Log xem tìm được bao nhiêu người
+    console.log(`✅ Tìm thấy: ${users.length} kết quả trong DB.`);
+    
+    // Nếu tìm thấy, in tên ra để kiểm tra
+    if (users.length > 0) {
+        users.forEach(u => console.log(`   - Found: ${u.fullName}`));
+    } else {
+        console.log("⚠️ Không tìm thấy ai (hoặc người tìm thấy chính là bạn).");
+    }
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Error in searchUsers:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
