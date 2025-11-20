@@ -10,8 +10,8 @@ const CustomChannelHeader = () => {
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
-  const isGroup = channel.data.member_count >= 2;
-
+  const isGroup = Object.prototype.hasOwnProperty.call(channel.data, 'name') && channel.data.name;
+  
   return (
     <div className="relative">
       <ChannelHeader />
