@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import {
   getOutgoingFriendReqs,
   getRecommendedUsers,
-  getUserFriends,
   sendFriendRequest,
   searchUsers,
 } from "../lib/api";
