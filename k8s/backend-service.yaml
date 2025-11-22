@@ -5,6 +5,9 @@ metadata:
   namespace: streamify
   annotations:
     alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5001"
+    prometheus.io/path: "/metrics"
 spec:
   selector:
     app: streamify-backend
