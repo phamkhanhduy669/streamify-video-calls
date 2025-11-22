@@ -1,0 +1,40 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: streamify-enterprise-rules
+  namespace: monitoring
+  labels:
+    release: prometheus
+    app: kube-prometheus-stack
+    app.kubernetes.io/instance: prometheus
+spec:
+  groups:
+  - name: streamify.backend
+    rules:
+    - alert: BackendDown
+      expr: (up{job="streamify-backend-svc", namespace="streamify"} == 0)
+        or (absent(up{job="streamify-backend-svc", namespace="streamify"}) == 1)
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "🔥 Backend Streamify đã SẬP!"
+        description: "Không tìm thấy Pod backend nào."
+    
+    - alert: HighLatency
+      expr: rate(http_request_duration_seconds_sum[1m]) / rate(http_request_duration_seconds_count[1m]) > 2
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "⚠️ API phản hồi chậm"
+        description: "Latency > 2s."
+    
+    - alert: HighCPUUsage
+      expr: sum(rate(container_cpu_usage_seconds_total{namespace="streamify", container="streamify-backend"}[1m])) by (pod) / sum(kube_pod_container_resource_limits{namespace="streamify", container="streamify-backend", resource="cpu"}) by (pod) * 100 > 80
+      for: 1m
+      labels:
+        severity: warning
+      annotations:
+        summary: "🔥CPU sử dụng cao trên Pod {{ $labels.pod }}"
+        description: "Pod {{ $labels.pod }} đang dùng {{ $value | humanize }}% CPU limit."

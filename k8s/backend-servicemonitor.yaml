@@ -10,6 +10,6 @@ spec:
     matchLabels:
       app: streamify-backend 
   endpoints:
-  - port: "5001"        
+  - port: http        
     path: /metrics
     interval: 15s

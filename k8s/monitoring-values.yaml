@@ -1,0 +1,48 @@
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+    
+    route:
+      group_by: ['alertname', 'job']
+      group_wait: 30s
+      group_interval: 2m
+      repeat_interval: 12h
+      receiver: 'discord-notifications'
+      
+      routes:
+      - match:
+          alertname: Watchdog
+        receiver: 'null'
+      
+      - match:
+          severity: critical
+        receiver: 'discord-notifications'
+
+      - match:
+          severity: warning
+        receiver: 'discord-notifications'
+
+    receivers:
+    - name: 'null'
+    - name: 'discord-notifications'
+      discord_configs:
+      - webhook_url: 'https://discord.com/api/webhooks/1441743477024231467/9Ind9Pxmw5V0XqofGxtHDm-DKzqzWrucCmtCFptF2kmSGKmebM5i1iFs5lck8zPw7jKE'
+        send_resolved: true
+        title: |-
+          [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }}
+        message: |-
+          {{ range .Alerts }}
+            🚨 **Alert:** {{ .Annotations.summary }}
+            📝 **Desc:** {{ .Annotations.description }}
+            🔥 **Severity:** {{ .Labels.severity }}
+            --------------------------------
+          {{ end }}
+
+# Tắt monitor các thành phần hệ thống để tránh lỗi etcd đỏ
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
