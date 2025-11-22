@@ -23,6 +23,7 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "stream-chat": "^8.60.0"
+    ,"prom-client": "^14.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

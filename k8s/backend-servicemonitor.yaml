@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: streamify-backend-monitor
+  namespace: streamify
+  labels:
+    release: prometheus 
+spec:
+  selector:
+    matchLabels:
+      app: streamify-backend 
+  endpoints:
+  - port: "5001"        
+    path: /metrics
+    interval: 15s
