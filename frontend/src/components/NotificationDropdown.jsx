@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellIcon, UserCheckIcon, CheckIcon } from "lucide-react";
 import { getFriendRequests, acceptFriendRequest, markNotificationRead } from "../lib/api";
 import toast from "react-hot-toast";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 
 const NotificationDropdown = () => {
   const queryClient = useQueryClient();
