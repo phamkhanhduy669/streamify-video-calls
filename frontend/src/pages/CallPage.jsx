@@ -1,115 +1,113 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
+import useAuthUser from "../hooks/useAuthUser";
+import { useQuery } from "@tanstack/react-query";
+import { getStreamToken } from "../lib/api";
+
 import {
-  Channel,
-  ChannelHeader,
-  MessageInput,
-  MessageList,
-  Window,
-  useChannelStateContext,
-} from "stream-chat-react";
-import { useStreamChat } from "../context/StreamChatProvider";
-import ChatLoader from "../components/ChatLoader";
-import CallButton from "../components/CallButton";
-import { Menu } from "lucide-react";
+  StreamVideo,
+  StreamVideoClient,
+  StreamCall,
+  CallControls,
+  SpeakerLayout,
+  StreamTheme,
+  CallingState,
+  useCallStateHooks,
+} from "@stream-io/video-react-sdk";
 
-// Component con để nhúng CallButton vào Header
-// Chúng ta cần component này để truy cập Context của Channel
-const CustomHeaderWithCall = ({ onMenuClick }) => {
-  const { channel } = useChannelStateContext();
-  const navigate = useNavigate();
+import "@stream-io/video-react-sdk/dist/css/styles.css";
+import toast from "react-hot-toast";
+import PageLoader from "../components/PageLoader";
 
-  const handleVideoCall = async () => {
-    try {
-      // 1. Tạo một ID ngẫu nhiên cho cuộc gọi
-      const callId = crypto.randomUUID();
+const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
-      // 2. Gửi sự kiện 'call.ringing' tới channel hiện tại
-      // Sự kiện này sẽ được StreamChatProvider bên người nhận bắt được
-      await channel.sendEvent({
-        type: "call.ringing",
-        callId: callId,
-        cid: channel.cid,
-      });
+const CallPage = () => {
+  const { id: callId } = useParams();
+  const [client, setClient] = useState(null);
+  const [call, setCall] = useState(null);
+  const [isConnecting, setIsConnecting] = useState(true);
 
-      // 3. Chuyển người gọi tới trang CallPage
-      navigate(`/call/${callId}`);
-    } catch (error) {
-      console.error("Failed to start call:", error);
-    }
-  };
+  const { authUser, isLoading } = useAuthUser();
 
-  return (
-      <div className="flex items-center justify-between p-3 border-b border-base-300 bg-base-100">
-        <div className="flex items-center gap-3">
-          <button onClick={onMenuClick} className="lg:hidden btn btn-ghost btn-circle btn-sm">
-            <Menu className="size-5" />
-          </button>
-          <div className="font-bold text-lg truncate max-w-[200px] sm:max-w-md">
-            {channel.data?.name || "Chat"}
-          </div>
-        </div>
-
-        {/* Nút gọi video với logic mới */}
-        <CallButton handleVideoCall={handleVideoCall} />
-      </div>
-  );
-};
-
-const ChatPage = () => {
-  const { id } = useParams();
-  const { chatClient, isChatClientReady } = useStreamChat();
-  const [channel, setChannel] = useState(null);
-  const navigate = useNavigate();
+  const { data: tokenData } = useQuery({
+    queryKey: ["streamToken"],
+    queryFn: getStreamToken,
+    enabled: !!authUser,
+  });
 
   useEffect(() => {
-    if (!isChatClientReady || !chatClient || !id) return;
+    const initCall = async () => {
+      if (!tokenData.token || !authUser || !callId) return;
 
-    // Tìm hoặc tạo channel messaging với id được cung cấp
-    const newChannel = chatClient.channel("messaging", id);
-    setChannel(newChannel);
+      try {
+        console.log("Initializing Stream video client...");
 
-    // Watch channel để bắt đầu nhận tin nhắn
-    newChannel.watch().catch((err) => {
-      console.error("Failed to watch channel:", err);
-      // Nếu lỗi (ví dụ không có quyền), có thể quay lại trang chủ
-      // navigate("/");
-    });
+        const user = {
+          id: authUser._id,
+          name: authUser.fullName,
+          image: authUser.profilePic,
+        };
 
-    return () => {
-      // Cleanup nếu cần
+        const videoClient = new StreamVideoClient({
+          apiKey: STREAM_API_KEY,
+          user,
+          token: tokenData.token,
+        });
+
+        const callInstance = videoClient.call("default", callId);
+
+        await callInstance.join({ create: true });
+
+        console.log("Joined call successfully");
+
+        setClient(videoClient);
+        setCall(callInstance);
+      } catch (error) {
+        console.error("Error joining call:", error);
+        toast.error("Could not join the call. Please try again.");
+      } finally {
+        setIsConnecting(false);
+      }
     };
-  }, [chatClient, isChatClientReady, id, navigate]);
 
-  // Handler để mở sidebar trên mobile (nếu Layout hỗ trợ toggle)
-  const handleToggleSidebar = () => {
-    // Logic mở sidebar, có thể dùng dispatch event hoặc context UI nếu có
-    // Ở đây minh họa đơn giản
-    const drawerCheckbox = document.getElementById('my-drawer-2');
-    if (drawerCheckbox) drawerCheckbox.checked = true;
-  };
+    initCall();
+  }, [tokenData, authUser, callId]);
 
-  if (!isChatClientReady || !channel) {
-    return (
-        <div className="h-full flex items-center justify-center">
-          <ChatLoader />
-        </div>
-    );
-  }
+  if (isLoading || isConnecting) return <PageLoader />;
 
   return (
-      <div className="h-full w-full bg-base-100 flex flex-col">
-        <Channel channel={channel}>
-          <Window>
-            {/* Sử dụng Header tùy chỉnh chứa logic gọi */}
-            <CustomHeaderWithCall onMenuClick={handleToggleSidebar} />
-
-            <MessageList />
-            <MessageInput />
-          </Window>
-        </Channel>
+    <div className="h-screen flex flex-col items-center justify-center">
+      <div className="relative">
+        {client && call ? (
+          <StreamVideo client={client}>
+            <StreamCall call={call}>
+              <CallContent />
+            </StreamCall>
+          </StreamVideo>
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p>Could not initialize call. Please refresh or try again later.</p>
+          </div>
+        )}
       </div>
+    </div>
   );
 };
 
-export default ChatPage;
+const CallContent = () => {
+  const { useCallCallingState } = useCallStateHooks();
+  const callingState = useCallCallingState();
+
+  const navigate = useNavigate();
+
+  if (callingState === CallingState.LEFT) return navigate("/");
+
+  return (
+    <StreamTheme>
+      <SpeakerLayout />
+      <CallControls />
+    </StreamTheme>
+  );
+};
+
+export default CallPage;
