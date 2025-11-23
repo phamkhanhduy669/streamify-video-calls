@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: streamify-app
+  namespace: argocd
+  annotations:
+    # Auto-check Docker Hub every 2 minutes
+    argocd-image-updater.argoproj.io/image-list: backend=phamkhanhduy/streamify-backend,frontend=phamkhanhduy/streamify-frontend
+    argocd-image-updater.argoproj.io/backend.update-strategy: latest
+    argocd-image-updater.argoproj.io/frontend.update-strategy: latest
+    argocd-image-updater.argoproj.io/backend.force-update: "true"
+    argocd-image-updater.argoproj.io/frontend.force-update: "true"
+    argocd-image-updater.argoproj.io/write-back-method: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/phamkhanhduy669/streamify-video-calls
+    targetRevision: HEAD
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: streamify
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

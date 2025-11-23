@@ -1,98 +1,129 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router";
+import { useStreamChat } from "../context/StreamChatProvider";
 import useAuthUser from "../hooks/useAuthUser";
-import { useQuery } from "@tanstack/react-query";
-import { getStreamToken } from "../lib/api";
 
 import {
   Channel,
-  ChannelHeader,
   Chat,
   MessageInput,
   MessageList,
   Thread,
   Window,
 } from "stream-chat-react";
-import { StreamChat } from "stream-chat";
-import toast from "react-hot-toast";
 
 import ChatLoader from "../components/ChatLoader";
 import CallButton from "../components/CallButton";
-
-const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
+import toast from "react-hot-toast";
+import CustomChannelHeader from "../components/CustomChannelHeader";
 
 const ChatPage = () => {
-  const { id: targetUserId } = useParams();
-
-  const [chatClient, setChatClient] = useState(null);
-  const [channel, setChannel] = useState(null);
-  const [loading, setLoading] = useState(true);
-
+  const { id: channelId } = useParams();
+  const { chatClient } = useStreamChat();
   const { authUser } = useAuthUser();
 
-  const { data: tokenData } = useQuery({
-    queryKey: ["streamToken"],
-    queryFn: getStreamToken,
-    enabled: !!authUser, // this will run only when authUser is available
-  });
+  const [channel, setChannel] = useState(null);
 
+  // Khi channelId thay đổi, luôn gọi lại channel.watch và reset state
   useEffect(() => {
-    const initChat = async () => {
-      if (!tokenData?.token || !authUser) return;
+    if (!chatClient || !chatClient.user || !authUser) return;
 
+    const setupChannel = async () => {
+      if (!chatClient || !authUser) {
+        console.warn("⚠️ chatClient hoặc authUser chưa sẵn sàng");
+        return;
+      }
+      if (!chatClient.user) {
+        console.warn("⚠️ Chat client chưa connectUser, chờ 500ms...");
+        setTimeout(setupChannel, 500);
+        return;
+      }
       try {
-        console.log("Initializing stream chat client...");
-
-        const client = StreamChat.getInstance(STREAM_API_KEY);
-
-        await client.connectUser(
-          {
-            id: authUser._id,
-            name: authUser.fullName,
-            image: authUser.profilePic,
-          },
-          tokenData.token
-        );
-
-        //
-        const channelId = [authUser._id, targetUserId].sort().join("-");
-
-        // you and me
-        // if i start the chat => channelId: [myId, yourId]
-        // if you start the chat => channelId: [yourId, myId]  => [myId,yourId]
-
-        const currChannel = client.channel("messaging", channelId, {
-          members: [authUser._id, targetUserId],
-        });
-
+        if (!channelId) {
+          console.warn("⚠️ channelId chưa được cung cấp trong route");
+          setLoading(false);
+          return;
+        }
+        const currChannel = chatClient.channel("messaging", channelId);
         await currChannel.watch();
-
-        setChatClient(client);
+        await currChannel.markRead();
         setChannel(currChannel);
-      } catch (error) {
-        console.error("Error initializing chat:", error);
-        toast.error("Could not connect to chat. Please try again.");
+      } catch (err) {
+        console.error("Chat channel setup error:", err);
+        toast.error("Could not load chat.");
       } finally {
         setLoading(false);
       }
     };
+    setupChannel();
+    return () => {
+      setChannel(null);
+      setLoading(true);
+    };
+  }, [chatClient, authUser, channelId]);
 
-    initChat();
-  }, [tokenData, authUser, targetUserId]);
+  // Nếu bị kick khỏi nhóm, văng về trang chủ
+  useEffect(() => {
+    if (!channel || !chatClient?.user?.id) return;
+    const handleMemberRemoved = (event) => {
+      if (event.user?.id === chatClient.user.id) {
+        window.location.href = "/";
+      }
+    };
+    channel.on('member.removed', handleMemberRemoved);
+    return () => {
+      channel.off('member.removed', handleMemberRemoved);
+    };
+  }, [channel, chatClient]);
+  const [loading, setLoading] = useState(true);
 
-  const handleVideoCall = () => {
-    if (channel) {
-      const callUrl = `${window.location.origin}/call/${channel.id}`;
+  // Khi channelId thay đổi, luôn gọi lại channel.watch và reset state
+  useEffect(() => {
+    if (!chatClient || !chatClient.user || !authUser) return;
 
-      channel.sendMessage({
-        text: `I've started a video call. Join me here: ${callUrl}`,
-      });
+    const setupChannel = async () => {
+      if (!chatClient || !authUser) {
+        console.warn("⚠️ chatClient hoặc authUser chưa sẵn sàng");
+        return;
+      }
+      if (!chatClient.user) {
+        console.warn("⚠️ Chat client chưa connectUser, chờ 500ms...");
+        setTimeout(setupChannel, 500);
+        return;
+      }
+      try {
+        if (!channelId) {
+          console.warn("⚠️ channelId chưa được cung cấp trong route");
+          setLoading(false);
+          return;
+        }
+        const currChannel = chatClient.channel("messaging", channelId);
+        await currChannel.watch();
+        await currChannel.markRead();
+        setChannel(currChannel);
+      } catch (err) {
+        console.error("Chat channel setup error:", err);
+        toast.error("Could not load chat.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    setupChannel();
+    return () => {
+      setChannel(null);
+      setLoading(true);
+    };
+  }, [chatClient, authUser, channelId]);
 
-      toast.success("Video call link sent successfully!");
-    }
-  };
 
   if (loading || !chatClient || !channel) return <ChatLoader />;
+  const handleVideoCall = () => {
+    const callUrl = `${window.location.origin}/call/${channel.id}`;
+    channel.sendMessage({
+      text: `I've started a video call. Join me here: ${callUrl}`,
+    });
+    toast.success("Video call link sent successfully!");
+  };
 
   return (
     <div className="h-[93vh]">
@@ -101,7 +132,7 @@ const ChatPage = () => {
           <div className="w-full relative">
             <CallButton handleVideoCall={handleVideoCall} />
             <Window>
-              <ChannelHeader />
+              <CustomChannelHeader />
               <MessageList />
               <MessageInput focus />
             </Window>
@@ -112,4 +143,5 @@ const ChatPage = () => {
     </div>
   );
 };
+
 export default ChatPage;

@@ -14,9 +14,15 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: false,
       minlength: 6,
     },
+    googleId: {
+  type: String,
+  unique: true,
+  sparse: true, // <-- Rất quan trọng
+},
+    
     bio: {
       type: String,
       default: "",
@@ -41,6 +47,7 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    
     friends: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -64,6 +71,9 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) {
+    return false;
+  }
   const isPasswordCorrect = await bcrypt.compare(enteredPassword, this.password);
   return isPasswordCorrect;
 };

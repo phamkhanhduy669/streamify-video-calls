@@ -2,6 +2,41 @@ import { upsertStreamUser } from "../lib/stream.js";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 
+
+const generateTokenAndSetCookie = (userId, res) => {
+  // 1. Tạo token (Sử dụng KEY và thời hạn giống như code cũ của bạn)
+  const token = jwt.sign({ userId }, process.env.JWT_SECRET_KEY, {
+    expiresIn: "7d", // Thời hạn 7 ngày
+  });
+
+  // 2. Thiết lập cookie
+  res.cookie("jwt", token, {
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày (tính bằng mili-giây)
+    httpOnly: true, // Ngăn XSS
+    sameSite: "strict", // Ngăn CSRF
+    secure: process.env.NODE_ENV === "production", // Chỉ gửi qua HTTPS khi ở production
+  });
+
+  // 3. Trả về token (để có thể dùng nếu cần)
+  return token;
+};
+export const googleCallback = async (req, res) => {
+  try {
+    // Passport.js đã xác thực user và gắn vào req.user (từ hàm done() trong passport.config.js)
+    // Giờ chúng ta chỉ cần tạo JWT và chuyển hướng về frontend
+    
+    generateTokenAndSetCookie(req.user._id, res); // Tạo JWT và set cookie
+
+    // Chuyển hướng về trang chủ của frontend
+    res.redirect(process.env.FRONTEND_URL); 
+
+  } catch (error) {
+    console.error("Lỗi trong Google Callback: ", error.message);
+    // Chuyển hướng về trang login với thông báo lỗi
+    res.redirect(`${process.env.FRONTEND_URL}/login?error=true`);
+  }
+};
+
 export async function signup(req, res) {
   const { email, password, fullName } = req.body;
 

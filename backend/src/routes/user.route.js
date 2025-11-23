@@ -7,6 +7,11 @@ import {
   getOutgoingFriendReqs,
   getRecommendedUsers,
   sendFriendRequest,
+  getProfile,
+  updateProfile,
+  deleteFriend,
+  searchUsers,
+  markNotificationRead
 } from "../controllers/user.controller.js";
 
 const router = express.Router();
@@ -14,13 +19,24 @@ const router = express.Router();
 // apply auth middleware to all routes
 router.use(protectRoute);
 
+router.use((req, res, next) => {
+  console.log("========================================");
+  console.log(`⚡️ ROUTER NHẬN REQUEST: ${req.method} ${req.url}`);
+  console.log("========================================");
+  next();
+});
+router.get("/search", protectRoute, searchUsers);
 router.get("/", getRecommendedUsers);
 router.get("/friends", getMyFriends);
 
 router.post("/friend-request/:id", sendFriendRequest);
 router.put("/friend-request/:id/accept", acceptFriendRequest);
 
+router.get("/me", getProfile);
+router.put("/me", updateProfile);
+
 router.get("/friend-requests", getFriendRequests);
 router.get("/outgoing-friend-requests", getOutgoingFriendReqs);
-
+router.delete("/friends/:id", deleteFriend);
+router.delete("/friend-request/read/:requestId", markNotificationRead);
 export default router;

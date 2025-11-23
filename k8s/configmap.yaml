@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: streamify-config
+  namespace: streamify
+data:
+  PORT: "5001"
+  NODE_ENV: "production"
+  GOOGLE_CALLBACK_URL: "https://streamifyapp.id.vn/api/auth/google/callback"
+  FRONTEND_URL: "https://streamifyapp.id.vn"

@@ -8,7 +8,13 @@ if (!apiKey || !apiSecret) {
   console.error("Stream API key or Secret is missing");
 }
 
-const streamClient = StreamChat.getInstance(apiKey, apiSecret);
+export const streamClient = StreamChat.getInstance(apiKey, apiSecret);
+
+export const getFriendRequests = async () => {
+  const res = await axiosInstance.get("/users/friend-requests");
+  // 'data' trả về { incomingReqs, acceptedReqs }
+  return res.data; 
+};
 
 export const upsertStreamUser = async (userData) => {
   try {
@@ -16,6 +22,7 @@ export const upsertStreamUser = async (userData) => {
     return userData;
   } catch (error) {
     console.error("Error upserting Stream user:", error);
+    throw error;
   }
 };
 
@@ -26,5 +33,6 @@ export const generateStreamToken = (userId) => {
     return streamClient.createToken(userIdStr);
   } catch (error) {
     console.error("Error generating Stream token:", error);
+    throw error;
   }
 };
