@@ -6,16 +6,26 @@ import useAuthUser from "../hooks/useAuthUser";
 import {
   Channel,
   Chat,
-  MessageInput,
   MessageList,
-  Thread,
   Window,
+  Thread,
+  MessageSimple,
 } from "stream-chat-react";
 
 import ChatLoader from "../components/ChatLoader";
 import CallButton from "../components/CallButton";
 import toast from "react-hot-toast";
 import CustomChannelHeader from "../components/CustomChannelHeader";
+import CustomMessageText from "../components/CustomMessageText";
+
+// 1. IMPORT CÁC FILE BẠN ĐÃ TẠO
+import CustomMessageInput from "../components/CustomMessageInput"; 
+import { ReplyProvider } from "../context/ReplyContext";
+
+// 2. Wrapper để giữ Avatar + Giao diện của bạn
+const CustomMessageWrapper = (props) => {
+  return <MessageSimple {...props} MessageText={CustomMessageText} />;
+};
 
 const ChatPage = () => {
   const { id: channelId } = useParams();
@@ -23,120 +33,67 @@ const ChatPage = () => {
   const { authUser } = useAuthUser();
 
   const [channel, setChannel] = useState(null);
-
-  // Khi channelId thay đổi, luôn gọi lại channel.watch và reset state
-  useEffect(() => {
-    if (!chatClient || !chatClient.user || !authUser) return;
-
-    const setupChannel = async () => {
-      if (!chatClient || !authUser) {
-        console.warn("⚠️ chatClient hoặc authUser chưa sẵn sàng");
-        return;
-      }
-      if (!chatClient.user) {
-        console.warn("⚠️ Chat client chưa connectUser, chờ 500ms...");
-        setTimeout(setupChannel, 500);
-        return;
-      }
-      try {
-        if (!channelId) {
-          console.warn("⚠️ channelId chưa được cung cấp trong route");
-          setLoading(false);
-          return;
-        }
-        const currChannel = chatClient.channel("messaging", channelId);
-        await currChannel.watch();
-        await currChannel.markRead();
-        setChannel(currChannel);
-      } catch (err) {
-        console.error("Chat channel setup error:", err);
-        toast.error("Could not load chat.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    setupChannel();
-    return () => {
-      setChannel(null);
-      setLoading(true);
-    };
-  }, [chatClient, authUser, channelId]);
-
-  // Nếu bị kick khỏi nhóm, văng về trang chủ
-  useEffect(() => {
-    if (!channel || !chatClient?.user?.id) return;
-    const handleMemberRemoved = (event) => {
-      if (event.user?.id === chatClient.user.id) {
-        window.location.href = "/";
-      }
-    };
-    channel.on('member.removed', handleMemberRemoved);
-    return () => {
-      channel.off('member.removed', handleMemberRemoved);
-    };
-  }, [channel, chatClient]);
   const [loading, setLoading] = useState(true);
 
-  // Khi channelId thay đổi, luôn gọi lại channel.watch và reset state
+  // Setup Channel
   useEffect(() => {
     if (!chatClient || !chatClient.user || !authUser) return;
-
     const setupChannel = async () => {
-      if (!chatClient || !authUser) {
-        console.warn("⚠️ chatClient hoặc authUser chưa sẵn sàng");
-        return;
-      }
-      if (!chatClient.user) {
-        console.warn("⚠️ Chat client chưa connectUser, chờ 500ms...");
-        setTimeout(setupChannel, 500);
-        return;
-      }
       try {
-        if (!channelId) {
-          console.warn("⚠️ channelId chưa được cung cấp trong route");
-          setLoading(false);
-          return;
-        }
+        if (!channelId) { setLoading(false); return; }
         const currChannel = chatClient.channel("messaging", channelId);
         await currChannel.watch();
-        await currChannel.markRead();
+        if (document.hasFocus()) await currChannel.markRead();
         setChannel(currChannel);
       } catch (err) {
-        console.error("Chat channel setup error:", err);
+        console.error(err);
         toast.error("Could not load chat.");
       } finally {
         setLoading(false);
       }
     };
     setupChannel();
-    return () => {
-      setChannel(null);
-      setLoading(true);
-    };
+    return () => { setChannel(null); setLoading(true); };
   }, [chatClient, authUser, channelId]);
 
-
-  if (loading || !chatClient || !channel) return <ChatLoader />;
   const handleVideoCall = () => {
     const callUrl = `${window.location.origin}/call/${channel.id}`;
     channel.sendMessage({
-      text: `I've started a video call. Join me here: ${callUrl}`,
+      text: "📞 Incoming Video Call...", 
+      attachments: [{ type: "video_call", call_url: callUrl }],
     });
-    toast.success("Video call link sent successfully!");
+    window.open(callUrl, "_blank");
+    toast.success("Starting video call...");
   };
 
+  if (loading || !chatClient || !channel) return <ChatLoader />;
+
   return (
-    <div className="h-[93vh]">
+    <div className="h-[93vh] bg-base-200">
       <Chat client={chatClient}>
-        <Channel channel={channel}>
-          <div className="w-full relative">
-            <CallButton handleVideoCall={handleVideoCall} />
-            <Window>
-              <CustomChannelHeader />
-              <MessageList />
-              <MessageInput focus />
-            </Window>
-          </div>
+        {/* Sử dụng CustomMessageWrapper để có Avatar + Text Custom */}
+        <Channel channel={channel} Message={CustomMessageText}>
+          
+          {/* 3. QUAN TRỌNG: Bọc ReplyProvider để tính năng Reply hoạt động */}
+          <ReplyProvider>
+            <div className="w-full relative h-full flex flex-col bg-transparent">
+                
+                {/* Nút gọi video */}
+                <div className="absolute top-3 right-4 z-50">
+                   <CallButton handleVideoCall={handleVideoCall} />
+                </div>
+
+                <Window>
+                  <CustomChannelHeader />
+                  <MessageList />
+                  
+                  {/* 4. DÙNG INPUT TÙY CHỈNH (Thay vì MessageInput gốc) */}
+                  <CustomMessageInput />
+                  
+                </Window>
+            </div>
+          </ReplyProvider>
+
           <Thread />
         </Channel>
       </Chat>
