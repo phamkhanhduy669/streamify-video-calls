@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
   type: String,
   unique: true,
   sparse: true, // <-- Rất quan trọng
-},
+    },
     
     bio: {
       type: String,
@@ -54,6 +54,14 @@ const userSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    enableTranslation: {
+      type: Boolean,
+      default: true,
+    },
+    targetLanguage: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );

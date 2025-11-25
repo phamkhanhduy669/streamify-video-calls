@@ -229,6 +229,8 @@ export async function updateProfile(req, res) {
       "nativeLanguage",
       "learningLanguage",
       "location",
+      "enableTranslation",
+      "targetLanguage",
     ];
 
     const updates = {};
