@@ -12,7 +12,7 @@ import { connectDB } from "./lib/db.js";
 import "./lib/passport.config.js";
 import passport from "passport";
 import client from "prom-client";
-
+import postRoutes from "./routes/post.route.js"; // Import
 const app = express();
 
 const register = new client.Registry();
@@ -25,6 +25,8 @@ const httpRequestDurationMicroseconds = new client.Histogram({
   buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10]
 });
 register.registerMetric(httpRequestDurationMicroseconds);
+app.use(express.json({ limit: "10mb" })); 
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.use((req, res, next) => {
   const end = httpRequestDurationMicroseconds.startTimer();
@@ -73,3 +75,4 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   connectDB();
 });
+app.use("/api/posts", postRoutes);

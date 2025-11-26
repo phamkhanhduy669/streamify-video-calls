@@ -98,3 +98,39 @@ export async function markNotificationRead(requestId) {
   const response = await axiosInstance.delete(`/users/friend-request/read/${requestId}`);
   return response.data;
 }
+export const getRandomWord = async (language) => {
+  // Mặc định là english nếu không có language
+  const lang = language || "english";
+  const res = await axiosInstance.get(`/users/word/${lang}`);
+  return res.data;
+};
+
+export const getPosts = async () => {
+  const res = await axiosInstance.get("/posts");
+  return res.data;
+};
+
+export const createPost = async (postData) => {
+  const res = await axiosInstance.post("/posts", postData);
+  return res.data;
+};
+
+export const likePost = async (postId) => {
+  const res = await axiosInstance.put(`/posts/${postId}/like`);
+  return res.data;
+};
+
+export const commentPost = async ({ postId, text }) => {
+  const res = await axiosInstance.post(`/posts/${postId}/comment`, { text });
+  return res.data;
+};
+
+export const deletePost = async (postId) => {
+  const res = await axiosInstance.delete(`/posts/${postId}`);
+  return res.data;
+};
+
+export const translateText = async ({ text, targetLanguage }) => {
+  const res = await axiosInstance.post("/users/translate", { text, targetLanguage });
+  return res.data; // Trả về { translatedText: "..." }
+};

@@ -12,7 +12,9 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.2",
+    "cloudinary": "^2.8.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
@@ -22,8 +24,8 @@
     "mongoose": "^8.13.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "prom-client": "^14.1.0",
     "stream-chat": "^8.60.0"
-    ,"prom-client": "^14.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
