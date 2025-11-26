@@ -138,6 +138,7 @@ const ForumPage = () => {
         const { translatedText } = await translateText({ text: content, targetLanguage: targetLang });
         setTranslatedPosts(prev => ({ ...prev, [postId]: translatedText }));
     } catch (error) {
+      console.error(error);
         toast.error("Translation failed. Try again.");
     } finally {
         setIsTranslating(prev => ({ ...prev, [postId]: false }));
