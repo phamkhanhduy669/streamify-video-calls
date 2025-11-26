@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
-import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, UserPlus, MessagesSquare} from "lucide-react"; // ✅ Import UserPlus
+import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, UserPlus, MessagesSquare, MessageCirclePlus} from "lucide-react"; // ✅ Import UserPlus
 import { useStreamChat } from "../context/StreamChatProvider";
 import { useQuery } from "@tanstack/react-query";
 import { getFriendRequests } from "../lib/api";
@@ -68,6 +68,17 @@ const Sidebar = () => {
             </span>
           )}
         </Link>
+
+        <Link
+          to="/groups"
+          className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
+            currentPath === "/groups" ? "btn-active" : ""
+          }`}
+        >
+          <MessageCirclePlus className="size-5 text-base-content opacity-70" />
+          <span>Groups</span>
+        </Link>
+
         <Link
           to="/forum"
           className={`btn btn-ghost justify-start w-full gap-3 px-3 normal-case ${
