@@ -133,6 +133,15 @@ const ForumPage = () => {
     }
 
     setIsTranslating(prev => ({ ...prev, [postId]: true }));
+    try {
+        const targetLang = authUser.nativeLanguage || "Vietnamese";
+        const { translatedText } = await translateText({ text: content, targetLanguage: targetLang });
+        setTranslatedPosts(prev => ({ ...prev, [postId]: translatedText }));
+    } catch (error) {
+        toast.error("Translation failed. Try again.");
+    } finally {
+        setIsTranslating(prev => ({ ...prev, [postId]: false }));
+    }
   };
 
   const renderFileIcon = (type) => {
@@ -161,7 +170,7 @@ const ForumPage = () => {
               </div>
           </div>
       );
-  };
+  }
 
   // ✅ HÀM XỬ LÝ URL TẢI XUỐNG THÔNG MINH
   const getDownloadUrl = (url, fileType) => {
