@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useStreamChat } from "../context/StreamChatProvider";
 import CreateGroupModal from "../components/CreateGroupModal";
 import ChatLoader from "../components/ChatLoader";
-import { Plus, Users, MessageSquare, Clock } from "lucide-react";
+import { Plus, Users, MessageSquare, Clock, MessageCirclePlus } from "lucide-react";
 import { useNavigate } from "react-router";
 
 // Custom Group Card Component
@@ -138,7 +138,7 @@ const GroupChannelList = ({ openCreateModal }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-primary/20 p-3 rounded-xl shadow-sm">
-              <Users className="size-8 text-primary" />
+              <MessageCirclePlus className="size-8 text-primary" />
             </div>
             <div>
               <h1 className="text-3xl font-bold text-base-content">Groups</h1>

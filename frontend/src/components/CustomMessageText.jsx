@@ -5,7 +5,8 @@ import {
 } from "lucide-react";
 import { 
   useMessageContext, 
-  useChatContext
+  useChatContext,
+  Attachment 
 } from "stream-chat-react"; 
 import { translateText } from "../lib/translateAPI";
 import toast from "react-hot-toast";
@@ -27,10 +28,16 @@ const CustomMessageText = (props) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const message = messageContext?.message || props.message;
+  
+  // Lấy handleAction từ context để xử lý các sự kiện click trên attachment (nếu có)
+  const { handleAction } = messageContext || {};
+
   if (!message || !message.user) return null;
   const isMyMessage = message.user.id === client.userID;
+  
   // --- LOGIC 1: TIN NHẮN ĐÃ THU HỒI ---
   const isDeleted = Boolean(message.deleted_at);
+  
   // --- LOGIC DỊCH ---
   const enableTranslation = authUser?.enableTranslation !== false;
   const targetLang = authUser?.targetLanguage || authUser?.nativeLanguage || "english";
@@ -65,8 +72,6 @@ const CustomMessageText = (props) => {
 
   const handleReply = () => {
     setReplyMessage(message); 
-    // focus textarea if needed
-    // const textarea = document.querySelector('.str-chat__textarea textarea');
   };
 
   const handleDelete = async () => {
@@ -111,7 +116,6 @@ const CustomMessageText = (props) => {
     // A. Thẻ Gọi Điện (Giữ nguyên code gốc của bạn)
     const callAttachment = message.attachments?.find((a) => a.type === "video_call");
     if (callAttachment) {
-      // Use daisyUI theme-aware color tokens so the call card adapts to current theme
       const outerBg = isMyMessage ? "bg-primary" : "bg-base-100";
       const outerBorder = isMyMessage ? "border-primary/20" : "border-base-300";
       const outerText = isMyMessage ? "text-primary-content" : "text-base-content";
@@ -138,10 +142,9 @@ const CustomMessageText = (props) => {
       );
     }
 
-    // B. Tin nhắn Text
-    // --- BẮT ĐẦU SỬA: Thêm điều kiện !message.quoted_message để không ẩn mất tin nhắn reply ---
-    if (!message.text && !message.quoted_message) return null;
-    // --- KẾT THÚC SỬA ---
+    // B. Tin nhắn Text & Attachments
+    const hasAttachments = message.attachments && message.attachments.length > 0;
+    if (!message.text && !message.quoted_message && !hasAttachments) return null;
 
     return (
       <div className={`p-2 px-3 shadow-sm transition-all duration-200 w-fit max-w-full ${
@@ -150,7 +153,7 @@ const CustomMessageText = (props) => {
             : "bg-base-200 text-base-content font-medium rounded-2xl rounded-tl-sm border border-base-300"
         }`}>
         
-        {/* HIỂN THỊ PHẦN TRÍCH DẪN (NẾU CÓ) */}
+        {/* HIỂN THỊ PHẦN TRÍCH DẪN */}
         {message.quoted_message && (
           <div className={`mb-2 p-2 rounded-lg text-xs border-l-4 opacity-90 shadow-sm select-none ${
              isMyMessage 
@@ -164,6 +167,20 @@ const CustomMessageText = (props) => {
              <div className="truncate max-w-[200px] italic opacity-80">
                {message.quoted_message.text || "Đính kèm"}
              </div>
+          </div>
+        )}
+
+        {/* 3. HIỂN THỊ ATTACHMENTS (ĐÃ FIX LỖI) */}
+        {hasAttachments && (
+          <div className="flex flex-col gap-2 mb-1">
+            {message.attachments.map((attachment, index) => (
+              <Attachment 
+                key={`${message.id}-${index}`} 
+                attachment={attachment}
+                attachments={message.attachments} /* <--- QUAN TRỌNG: Thêm dòng này để fix lỗi undefined filter */
+                actionHandler={handleAction}      /* <--- Thêm dòng này để hỗ trợ các action mặc định */
+              />
+            ))}
           </div>
         )}
 

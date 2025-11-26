@@ -18,14 +18,14 @@ const CustomChannelHeader = () => {
       {isGroup && (
         <>
           <button
-            className="absolute right-32 top-1/2 -translate-y-1/2 btn btn-ghost btn-sm btn-circle tooltip"
+            className="absolute right-32 top-1/2 -translate-y-1/2 btn btn-ghost btn-sm btn-circle tooltip z-50"
             data-tip="Add Members"
             onClick={() => setIsAddMemberModalOpen(true)}
           >
             <UserPlus size={20} />
           </button>
           <button
-            className="absolute right-20 top-1/2 -translate-y-1/2 btn btn-ghost btn-sm btn-circle tooltip"
+            className="absolute right-20 top-1/2 -translate-y-1/2 btn btn-ghost btn-sm btn-circle tooltip z-50"
             data-tip="Group Settings"
             onClick={() => setIsSettingsModalOpen(true)}
           >
