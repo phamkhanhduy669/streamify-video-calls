@@ -11,7 +11,8 @@ import { X } from "lucide-react";
  * @param {Array<string>} usersToExclude - Danh sách ID người dùng cần loại trừ khỏi kết quả tìm kiếm (VD: các thành viên đã có trong nhóm).
  */
 const UserSearch = ({ onSelectUser, initialSelectedUsers = [], usersToExclude = [] }) => {
-  const { chatClient } = useStreamChat();
+  //  1. Lấy thêm isChatClientReady từ context
+  const { chatClient, isChatClientReady } = useStreamChat();
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState([]);
   const [selectedUsersMap, setSelectedUsersMap] = useState(new Map());
@@ -35,14 +36,14 @@ const UserSearch = ({ onSelectUser, initialSelectedUsers = [], usersToExclude = 
 
   useEffect(() => {
     const searchUsers = async () => {
-      if (!searchTerm || !chatClient) {
+      // 👇 2. Kiểm tra thêm điều kiện !isChatClientReady
+      if (!searchTerm || !chatClient || !isChatClientReady) {
         setResults([]);
         return;
       }
       
       setLoading(true);
       try {
-        // Loại trừ chính mình và các thành viên đã có
         const usersToFilterOut = JSON.parse(excludedUserIds);
 
         const filter = {
@@ -57,7 +58,10 @@ const UserSearch = ({ onSelectUser, initialSelectedUsers = [], usersToExclude = 
         setResults(response.users || []);
       } catch (err) {
         console.error("Error searching users:", err);
-        toast.error("Cannot search users. Please try again.");
+        // Không toast lỗi nếu lỗi là do chưa kết nối (để tránh spam thông báo)
+        if (isChatClientReady) {
+           toast.error("Cannot search users. Please try again.");
+        }
         setResults([]);
       } finally {
         setLoading(false);
@@ -66,7 +70,8 @@ const UserSearch = ({ onSelectUser, initialSelectedUsers = [], usersToExclude = 
 
     const debounceTimer = setTimeout(searchUsers, 300);
     return () => clearTimeout(debounceTimer);
-  }, [searchTerm, chatClient, excludedUserIds]);
+    //  3. Thêm isChatClientReady vào dependency array
+  }, [searchTerm, chatClient, isChatClientReady, excludedUserIds]);
 
   const handleSelect = (user) => {
     const newMap = new Map(selectedUsersMap);
@@ -76,7 +81,7 @@ const UserSearch = ({ onSelectUser, initialSelectedUsers = [], usersToExclude = 
       newMap.set(user.id, user);
     }
     setSelectedUsersMap(newMap);
-    onSelectUser(Array.from(newMap.keys())); // Truyền mảng ID ra ngoài
+    onSelectUser(Array.from(newMap.keys())); 
   };
 
   const handleRemove = (userId) => {
@@ -123,8 +128,10 @@ const UserSearch = ({ onSelectUser, initialSelectedUsers = [], usersToExclude = 
       {/* Search Input */}
       <input
         type="text"
-        placeholder="Search by name or username..."
-        className="input input-bordered w-full text-base-content"
+        placeholder={isChatClientReady ? "Search by name or username..." : "Connecting..."}
+        //  4. Disable input nếu chưa kết nối xong
+        disabled={!isChatClientReady}
+        className="input input-bordered w-full text-base-content disabled:bg-base-200 disabled:text-base-content/30"
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
       />
@@ -172,7 +179,7 @@ const UserSearch = ({ onSelectUser, initialSelectedUsers = [], usersToExclude = 
       )}
 
       {/* Empty State */}
-      {!loading && searchTerm && results.length === 0 && (
+      {!loading && searchTerm && results.length === 0 && isChatClientReady && (
         <div className="text-center py-8 text-base-content/50">
           No users found for "{searchTerm}"
         </div>
