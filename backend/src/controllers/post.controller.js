@@ -1,6 +1,7 @@
 import Post from "../models/Post.js";
 import cloudinary from "../lib/cloudinary.js";
-
+import { streamClient } from "../lib/stream.js";
+import Notification from "../models/Notification.js";
 // Lấy tất cả bài viết
 export const getPosts = async (req, res) => {
   try {
@@ -15,15 +16,31 @@ export const getPosts = async (req, res) => {
   }
 };
 
-// Helper: Upload file RAW lên Cloudinary
-// Hàm này giờ đây nhận vào Buffer thay vì base64 string để linh hoạt hơn
-const uploadToCloudinaryRaw = (fileBuffer, filename) => {
+// Helper: Lấy extension chuẩn từ MIME type
+const getExtensionFromMime = (mimeType) => {
+  const mimeMap = {
+    "application/pdf": "pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/msword": "doc",
+    "text/plain": "txt",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/vnd.ms-excel": "xls",
+    "text/csv": "csv",
+  };
+  return mimeMap[mimeType] || "bin";
+};
+
+// Helper: Upload Raw File
+const uploadToCloudinaryRaw = (fileBuffer, filename, options = {}) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         resource_type: "raw",
         public_id: filename,
         folder: "forum_posts",
+        use_filename: true,
+        unique_filename: false,
+        ...options,
       },
       (error, result) => {
         if (error) reject(error);
@@ -34,31 +51,14 @@ const uploadToCloudinaryRaw = (fileBuffer, filename) => {
   });
 };
 
-// Helper: Lấy extension từ MIME type
-const getExtensionFromMime = (mimeType) => {
-  const mimeMap = {
-    "application/pdf": "pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
-    "application/msword": "doc",
-    "text/plain": "txt",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
-    "application/vnd.ms-excel": "xls",
-    // Thêm các loại khác nếu cần
-  };
-  return mimeMap[mimeType] || "bin";
-};
-
 export const createPost = async (req, res) => {
   try {
     const { content, image } = req.body;
     let imageUrl = null;
     let fileType = null;
-    let publicId = null; // Lưu public_id để sau này xóa nếu cần
 
     if (image) {
-      // Tách header và data của base64: "data:[mimeType];base64,[data]"
       const matches = image.match(/^data:(.+);base64,(.+)$/);
-
       if (!matches) {
         return res.status(400).json({ message: "Invalid file format" });
       }
@@ -66,44 +66,42 @@ export const createPost = async (req, res) => {
       const mimeType = matches[1];
       const base64Data = matches[2];
 
-      // ---------------------------
-      // 1. UPLOAD ẢNH HOẶC PDF
-      // (PDF upload dạng này mới hỗ trợ flag fl_attachment để download)
-      // ---------------------------
-      if (mimeType.startsWith("image/") || mimeType === "application/pdf") {
+      // ---------------------------------------------------------
+      // TRƯỜNG HỢP 1: ẢNH (JPG, PNG...)
+      // ---------------------------------------------------------
+      if (mimeType.startsWith("image/")) {
         const uploadResponse = await cloudinary.uploader.upload(image, {
-          resource_type: "auto", // Để auto, Cloudinary sẽ xử lý PDF như image resource
+          resource_type: "image",
           folder: "forum_posts",
         });
         
         imageUrl = uploadResponse.secure_url;
-        publicId = uploadResponse.public_id;
-
-        // Xử lý riêng cho PDF
-        if (mimeType === "application/pdf") {
-          // Chỉ thêm flag attachment nều là PDF (và đã upload dạng auto/image)
-          imageUrl = imageUrl.replace("/upload/", "/upload/fl_attachment/");
-          fileType = "raw"; // Lưu là raw để FE hiển thị link download
-        } else {
-          fileType = "image";
-        }
+        fileType = "image";
       } 
-      // ---------------------------
-      // 2. UPLOAD FILE RAW KHÁC (DOCX, XLSX...)
-      // ---------------------------
+      // ---------------------------------------------------------
+      // TRƯỜNG HỢP 2: FILE TÀI LIỆU (PDF, DOCX, TXT...)
+      // ---------------------------------------------------------
       else {
         const extension = getExtensionFromMime(mimeType);
         const filename = `file_${Date.now()}.${extension}`;
         const fileBuffer = Buffer.from(base64Data, "base64");
 
-        // Tái sử dụng hàm helper uploadToCloudinaryRaw
-        const uploadResponse = await uploadToCloudinaryRaw(fileBuffer, filename);
-        
-        // QUAN TRỌNG: KHÔNG thêm fl_attachment vào đây vì sẽ làm hỏng URL file raw
-        imageUrl = uploadResponse.secure_url;
-        
-        publicId = uploadResponse.public_id;
-        fileType = "raw";
+        // --- XỬ LÝ CHO PDF: ÉP BUỘC PUBLIC ĐỂ KHÔNG BỊ LỖI ACCESS ---
+        if (extension === "pdf") {
+          const uploadResponse = await uploadToCloudinaryRaw(fileBuffer, filename, {
+            type: "upload",      // Loại upload thường (Public)
+            access_mode: "public" // Chế độ truy cập công khai
+          });
+          
+          imageUrl = uploadResponse.secure_url;
+          fileType = "raw";
+        } 
+        // --- CÁC FILE KHÁC (DOCX, TXT...) ---
+        else {
+          const uploadResponse = await uploadToCloudinaryRaw(fileBuffer, filename);
+          imageUrl = uploadResponse.secure_url;
+          fileType = "raw";
+        }
       }
     }
 
@@ -112,8 +110,6 @@ export const createPost = async (req, res) => {
       content,
       image: imageUrl,
       fileType: fileType,
-      // Lưu ý: Bạn nên thêm trường publicId vào Model Post nếu muốn xóa ảnh trên Cloudinary sau này
-      // cloudinaryPublicId: publicId 
     });
 
     await newPost.save();
@@ -127,22 +123,50 @@ export const createPost = async (req, res) => {
 
 export const likePost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await Post.findById(req.params.id).populate("author", "fullName profilePic");
     if (!post) return res.status(404).json({ message: "Post not found" });
 
     const userId = req.user._id;
-    
-    // Kiểm tra xem user đã like chưa
-    const isLiked = post.likes.includes(userId);
+    const user = req.user; // Người thực hiện hành động like
 
-    if (isLiked) {
+    if (post.likes.includes(userId)) {
       // Unlike
       post.likes = post.likes.filter((id) => id.toString() !== userId.toString());
     } else {
       // Like
       post.likes.push(userId);
-    }
 
+      // 🔔 GỬI THÔNG BÁO (Chỉ gửi khi Like, không gửi khi Unlike)
+      // Và không gửi nếu tự like bài mình
+      if (post.author._id.toString() !== userId.toString()) {
+        const newNotif = new Notification({
+                recipient: post.author._id,
+                sender: user._id,
+                type: "like",
+                postId: post._id,
+                message: `${user.fullName} liked your post.`
+                });
+            await newNotif.save();
+          try {
+            await streamClient.sendUserCustomEvent(post.author._id.toString(), {
+                type: "notification_new", // Tên sự kiện chung cho thông báo
+                payload: {
+                    type: "like", // Loại thông báo
+                    sender: { 
+                        id: user._id.toString(),
+                        name: user.fullName,
+                        image: user.profilePic 
+                    },
+                    postId: post._id.toString(),
+                    message: `${user.fullName} liked your post.`
+                },
+            });
+          } catch (streamErr) {
+              console.error("Failed to send like notification:", streamErr);
+          }
+      }
+    }
+    
     await post.save();
     res.status(200).json(post);
   } catch (error) {
@@ -151,29 +175,53 @@ export const likePost = async (req, res) => {
   }
 };
 
+// ✅ HÀM COMMENT (ĐÃ THÊM NOTIFICATION)
 export const commentPost = async (req, res) => {
   try {
     const { text } = req.body;
-    
-    // Tìm post và push comment trực tiếp vào mảng comments
-    // Sử dụng findByIdAndUpdate để tối ưu nếu không cần xử lý logic phức tạp
-    // Tuy nhiên, cách dùng post.save() của bạn vẫn ổn để trigger middleware nếu có.
-    
-    const post = await Post.findById(req.params.id);
+    const post = await Post.findById(req.params.id).populate("author", "fullName profilePic");
     if (!post) return res.status(404).json({ message: "Post not found" });
 
+    const user = req.user; // Người comment
+
     const newComment = {
-      author: req.user._id,
+      author: user._id,
       text,
       createdAt: new Date(),
     };
 
     post.comments.push(newComment);
     await post.save();
-    
-    // Populate lại tác giả comment vừa tạo để trả về cho FE hiển thị ngay lập tức
-    // (Tuỳ chọn, nhưng hữu ích cho UI)
-    // await post.populate("comments.author", "fullName profilePic");
+
+    // 🔔 GỬI THÔNG BÁO
+    // Không gửi nếu tự comment bài mình
+    if (post.author._id.toString() !== user._id.toString()) {
+      const newNotif = new Notification({
+            recipient: post.author._id,
+            sender: user._id,
+            type: "comment",
+            postId: post._id,
+            message: `${user.fullName} commented on your post.`
+       });
+       await newNotif.save();
+        try {
+            await streamClient.sendUserCustomEvent(post.author._id.toString(), {
+                type: "notification_new",
+                payload: {
+                    type: "comment",
+                    sender: { 
+                        id: user._id.toString(),
+                        name: user.fullName,
+                        image: user.profilePic 
+                    },
+                    postId: post._id.toString(),
+                    message: `${user.fullName} commented on your post: "${text.substring(0, 20)}${text.length > 20 ? '...' : ''}"`
+                },
+            });
+          } catch (streamErr) {
+              console.error("Failed to send comment notification:", streamErr);
+          }
+    }
 
     res.status(200).json(post);
   } catch (error) {
@@ -185,47 +233,37 @@ export const commentPost = async (req, res) => {
 export const deletePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Post not found" });
 
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
-    }
-
-    // Check quyền
     if (post.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({ message: "You are not authorized to delete this post" });
     }
 
-    // Xóa ảnh trên Cloudinary nếu có
     if (post.image) {
-       // Để xóa chính xác, bạn cần lấy public_id. 
-       // Nếu trong DB bạn lưu full URL, bạn cần parse public_id từ URL đó 
-       // hoặc tốt nhất là lưu field `cloudinaryId` riêng trong Model Post.
-       
-       // Ví dụ logic lấy ID từ URL (cách đơn giản, không khuyến khích bằng lưu ID riêng):
        const urlParts = post.image.split('/');
-       const fileNameWithExt = urlParts[urlParts.length - 1];
-       const publicId = `forum_posts/${fileNameWithExt.split('.')[0]}`; // folder + filename
+       const fileNameWithExt = urlParts[urlParts.length - 1]; 
+       const cleanFileName = fileNameWithExt.split('?')[0]; 
        
-       // Xác định resource_type
-       // Mặc định là 'image' (bao gồm cả PDF upload kiểu mới)
-       // Chỉ dùng 'raw' nếu fileType là raw VÀ không phải pdf
-       let resourceType = "image";
-       if (post.fileType === "raw") {
-           // Nếu là raw nhưng URL chứa .pdf thì nó thực chất là resource image trên Cloudinary
-           if (post.image.includes(".pdf")) {
-               resourceType = "image";
-           } else {
-               resourceType = "raw";
+       let publicId = `forum_posts/${cleanFileName}`;
+       
+       // Kiểm tra xem link có phải authenticated không (đề phòng xóa file cũ)
+       const isAuthenticated = post.image.includes("/authenticated/");
+
+       if (post.fileType === "image") {
+           const nameOnly = cleanFileName.substring(0, cleanFileName.lastIndexOf('.'));
+           publicId = `forum_posts/${nameOnly}`;
+           await cloudinary.uploader.destroy(publicId); 
+       } else {
+           const destroyOptions = { resource_type: "raw" };
+           // Nếu là file cũ (authenticated) thì xóa kiểu authenticated, file mới (public) thì xóa kiểu thường
+           if (isAuthenticated) {
+               destroyOptions.type = "authenticated";
            }
+           await cloudinary.uploader.destroy(publicId, destroyOptions);
        }
-       
-       await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
     }
 
-    // Xóa post
-    // Sử dụng deleteOne() trên document instance thay vì gọi query mới findByIdAndDelete
     await post.deleteOne(); 
-
     res.status(200).json({ message: "Post deleted successfully" });
   } catch (error) {
     console.error("Error in deletePost:", error);

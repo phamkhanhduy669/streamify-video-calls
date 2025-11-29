@@ -2,30 +2,37 @@ import { Link } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { MessageCircle, UserPlus, Users, Zap, BookOpen, Star, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { getUserFriends, getFriendRequests, getRandomWord } from "../lib/api";
-import { capitialize } from "../lib/utils"; // Import hàm viết hoa
+import { getUserFriends, getFriendRequests, getRandomWord } from "../lib/api"; 
+import { capitialize } from "../lib/utils";
 
 const HomePage = () => {
   const { authUser } = useAuthUser();
 
-  // Lấy dữ liệu thống kê thực tế
+  // Lấy dữ liệu bạn bè
   const { data: friends = [] } = useQuery({
     queryKey: ["friends"],
     queryFn: getUserFriends,
   });
 
+  // Lấy dữ liệu lời mời kết bạn
   const { data: friendRequests } = useQuery({
     queryKey: ["friendRequests"],
     queryFn: getFriendRequests,
   });
 
+  // Ngôn ngữ mục tiêu (Target) và Ngôn ngữ mẹ đẻ (Native)
   const targetLang = authUser?.learningLanguage || "English";
+  const nativeLang = authUser?.nativeLanguage || "English"; // ✅ Lấy native language
 
-  // ✅ 1. FETCH TỪ VỰNG TỪ AI BACKEND
+  // ✅ CẬP NHẬT useQuery CHO WORD OF THE DAY
   const { data: wordOfTheDay, isLoading: loadingWord, refetch: refreshWord } = useQuery({
-    queryKey: ["wordOfTheDay", targetLang], // Cache theo ngôn ngữ
-    queryFn: () => getRandomWord(targetLang),
-    staleTime: 1000 * 60 * 60 * 24, // (Tùy chọn) Cache 24h để không gọi AI liên tục mỗi khi reload
+    // Thêm nativeLang vào queryKey để khi đổi native lang thì nó fetch lại
+    queryKey: ["wordOfTheDay", targetLang, nativeLang], 
+    
+    // Truyền nativeLang vào hàm API
+    queryFn: () => getRandomWord(targetLang, nativeLang),
+    
+    staleTime: 1000 * 60 * 60 * 24, // Cache 24h
     refetchOnWindowFocus: false,
   });
 
@@ -37,8 +44,7 @@ const HomePage = () => {
      example: "...",
      language: targetLang
   };
-  
-  
+
   return (
     <div className="p-4 md:p-8 min-h-full">
       <div className="max-w-5xl mx-auto space-y-8">
@@ -53,13 +59,24 @@ const HomePage = () => {
               Let's make some progress in <span className="font-bold text-primary">{capitialize(targetLang)}</span> today.
             </p>
           </div>
-          {/* ... Stats Badge ... */}
+          
+           {/* Stats Badge */}
+           <div className="flex gap-3">
+             <div className="badge badge-lg badge-primary gap-2 p-4 shadow-md">
+                <Zap className="size-4" />
+                <span>3 Day Streak</span> 
+             </div>
+             <div className="badge badge-lg badge-secondary gap-2 p-4 shadow-md">
+                <Star className="size-4" />
+                <span>Level 1</span> 
+             </div>
+          </div>
         </div>
 
         {/* WIDGETS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* ✅ Widget A: Word of the Day (AI POWERED) */}
+            {/* Widget A: Word of the Day (AI POWERED) */}
             <div className="card bg-base-200 shadow-xl border-l-4 border-accent md:col-span-2 relative group">
                 <div className="card-body">
                     <div className="flex items-center justify-between mb-2">
@@ -100,6 +117,7 @@ const HomePage = () => {
                     )}
                 </div>
             </div>
+
             {/* Widget B: Quick Status */}
             <div className="card bg-base-100 shadow-xl border border-base-200">
                 <div className="card-body">
