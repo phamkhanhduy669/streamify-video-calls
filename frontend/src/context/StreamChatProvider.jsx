@@ -97,7 +97,7 @@ export const StreamChatProvider = ({ children }) => {
         });
 
         client.on("notification_new", (event) => {
-            const { type, sender, message } = event.payload;
+            const { type, message } = event.payload;
             
             // Hiển thị Toast
             // Bạn có thể tùy chỉnh icon dựa trên type (like/comment)
