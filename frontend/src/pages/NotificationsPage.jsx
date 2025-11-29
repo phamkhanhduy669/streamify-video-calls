@@ -1,171 +1,155 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { acceptFriendRequest, getFriendRequests, markNotificationRead } from "../lib/api"; // Đảm bảo import đủ
-import { BellIcon, ClockIcon, MessageSquareIcon, UserCheckIcon } from "lucide-react";
-import NoNotificationsFound from "../components/NoNotificationsFound";
+import { getNotifications, markNotificationRead, acceptFriendRequest, declineFriendRequest } from "../lib/api";
+import toast from "react-hot-toast";
+import { BellIcon, UserPlus, Heart, MessageCircle, Check, X } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 const NotificationsPage = () => {
   const queryClient = useQueryClient();
 
-  // 1. Lấy dữ liệu
-  const { data: friendRequests, isLoading } = useQuery({
-    queryKey: ["friendRequests"],
-    queryFn: getFriendRequests,
+  // 1. Lấy danh sách thông báo
+  const { data: notifications = [], isLoading, isError } = useQuery({
+    queryKey: ["notifications"], 
+    queryFn: getNotifications,   
   });
 
-  // 2. Hàm chấp nhận kết bạn
-  const { mutate: acceptRequestMutation, isPending } = useMutation({
+  // 2. Mutation Chấp nhận
+  const { mutate: acceptMutate, isPending: isAccepting } = useMutation({
     mutationFn: acceptFriendRequest,
     onSuccess: () => {
+      toast.success("Friend request accepted!");
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
       queryClient.invalidateQueries({ queryKey: ["friends"] });
     },
+    onError: (error) => toast.error(error.response?.data?.message || "Failed to accept"),
   });
 
-  // 3. Hàm đánh dấu đã đọc (Có thêm Log Error)
-  const { mutate: markRead } = useMutation({
-    mutationFn: markNotificationRead,
+  // 3. Mutation Từ chối (Đã kiểm tra kỹ)
+  const { mutate: declineMutate, isPending: isDeclining } = useMutation({
+    mutationFn: declineFriendRequest,
     onSuccess: () => {
-      console.log("✅ API báo thành công! Đang refresh lại list...");
+      toast.success("Request declined");
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      // Cũng cần invalidate friendRequests nếu bạn dùng query này ở nơi khác
       queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
     },
-    onError: (err) => {
-      console.error("❌ Lỗi khi gọi API markRead:", err);
-    }
+    onError: (error) => toast.error(error.response?.data?.message || "Failed to decline"),
   });
 
-  // Hàm tính thời gian
-  const formatTime = (dateString) => {
-    if (!dateString) return "Recently";
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
-    if (diffInSeconds < 60) return "Recently";
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-    return `${Math.floor(diffInSeconds / 86400)} days ago`;
+  // 4. Mutation Đánh dấu đã đọc
+  const { mutate: markRead } = useMutation({
+    mutationFn: markNotificationRead,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
+  const renderIcon = (type) => {
+      switch(type) {
+          case "like": return <Heart className="size-5 text-error fill-current" />;
+          case "comment": return <MessageCircle className="size-5 text-primary" />;
+          case "friend_request": return <UserPlus className="size-5 text-accent" />;
+          default: return <BellIcon className="size-5" />;
+      }
   };
 
-  const incomingRequests = friendRequests?.incomingReqs || [];
-  const acceptedRequests = friendRequests?.acceptedReqs || [];
+  if (isLoading) {
+    return (
+        <div className="flex justify-center py-10">
+            <span className="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+    );
+  }
 
-  // Hàm xử lý click (Tách riêng để dễ debug)
-  const handleNotificationClick = (notification) => {
-    console.log("🖱️ Đã click vào thông báo:", notification._id);
-    console.log("👉 Trạng thái hiện tại - read:", notification.read);
-
-    if (notification.read) {
-      console.log("⚠️ Thông báo này đã đọc rồi -> Không gọi API.");
-      return;
-    }
-    
-    console.log("🚀 Đang gọi hàm markRead...");
-    markRead(notification._id);
-  };
+  if (isError) {
+    return <div className="p-4 text-center text-error">Failed to load notifications.</div>;
+  }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="container mx-auto max-w-4xl space-y-8">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-6">Notifications</h1>
+    <div className="p-4 md:p-8 min-h-screen bg-base-100">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-3xl font-bold mb-6 flex items-center gap-2">
+            <BellIcon className="size-8 text-primary" /> Notifications
+        </h1>
 
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <span className="loading loading-spinner loading-lg"></span>
+        {notifications.length === 0 ? (
+          <div className="text-center py-12 bg-base-200 rounded-lg border border-base-300">
+             <BellIcon className="size-12 opacity-20 mx-auto mb-3" />
+             <p className="text-lg opacity-60">You have no notifications yet.</p>
           </div>
         ) : (
-          <>
-            {/* SECTION 1: Friend Requests (Giữ nguyên) */}
-            {incomingRequests.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <UserCheckIcon className="h-5 w-5 text-primary" />
-                  Friend Requests
-                  <span className="badge badge-primary ml-2">{incomingRequests.length}</span>
-                </h2>
-                <div className="space-y-3">
-                  {incomingRequests.map((request) => (
-                    <div key={request._id} className="card bg-base-200 shadow-sm">
-                      <div className="card-body p-4">
-                         {/* Nội dung friend request giữ nguyên */}
-                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="avatar w-14 h-14 rounded-full">
-                                    <img src={request.sender.profilePic || "/avatar.png"} alt={request.sender.fullName} />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold">{request.sender.fullName}</h3>
-                                    <p className="text-xs">Sent you a friend request</p>
-                                </div>
-                            </div>
-                            <button className="btn btn-primary btn-sm" onClick={() => acceptRequestMutation(request._id)} disabled={isPending}>
-                                Accept
-                            </button>
-                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* SECTION 2: Accepted Requests (CÓ DEBUG LOG) */}
-            {acceptedRequests.length > 0 && (
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <BellIcon className="h-5 w-5 text-success" />
-                  New Connections
-                </h2>
-
-                <div className="space-y-3">
-                  {acceptedRequests.map((notification) => (
-                    <div 
-                      key={notification._id} 
-                      // 👇 SỬA Ở ĐÂY: Gọi hàm handleNotificationClick
-                      onClick={() => handleNotificationClick(notification)}
-                      className={`card shadow-sm transition-all cursor-pointer border ${notification.read ? 'bg-base-100 opacity-60 border-transparent' : 'bg-base-200 hover:shadow-md border-base-300'}`}
-                    >
-                      <div className="card-body p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="avatar mt-1 size-10 rounded-full">
-                            <img
-                              src={notification.recipient.profilePic || "/avatar.png"}
-                              alt={notification.recipient.fullName}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className={`font-semibold ${!notification.read && 'text-primary'}`}>
-                                {notification.recipient.fullName}
-                            </h3>
-                            <p className="text-sm my-1">
-                              {notification.recipient.fullName} accepted your friend request
-                            </p>
-                            <p className="text-xs flex items-center opacity-70">
-                              <ClockIcon className="h-3 w-3 mr-1" />
-                              {formatTime(notification.updatedAt)} 
-                            </p>
-                          </div>
-                          
-                          {!notification.read ? (
-                             <div className="badge badge-success text-white gap-1">
-                                <MessageSquareIcon className="h-3 w-3" />
-                                New
-                             </div>
-                          ) : (
-                             <div className="badge badge-ghost gap-1 opacity-50">
-                                Seen
-                             </div>
-                          )}
+          <div className="space-y-3">
+            {notifications.map((notif) => (
+              <div 
+                key={notif._id} 
+                className={`card bg-base-100 shadow-sm border transition-all ${!notif.read ? 'border-primary bg-primary/5' : 'border-base-300 hover:border-base-400'}`}
+                onClick={() => !notif.read && markRead(notif._id)}
+              >
+                <div className="card-body p-4 flex-row items-start gap-4">
+                    
+                    <div className="avatar mt-1">
+                        <div className="w-12 h-12 rounded-full ring ring-base-300 ring-offset-base-100 ring-offset-1">
+                            <img src={notif.sender.profilePic || "/avatar.png"} alt={notif.sender.fullName} />
                         </div>
-                      </div>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
 
-            {incomingRequests.length === 0 && acceptedRequests.length === 0 && (
-              <NoNotificationsFound />
-            )}
-          </>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                            <p className="font-medium text-base">
+                                <span className="font-bold">{notif.sender.fullName}</span> 
+                                <span className="opacity-80 ml-1">
+                                    {notif.type === 'like' && "liked your post."}
+                                    {notif.type === 'comment' && "commented on your post."}
+                                    {notif.type === 'friend_request' && "sent you a friend request."}
+                                </span>
+                            </p>
+                            <span className="text-xs opacity-50 whitespace-nowrap ml-2">
+                                {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
+                            </span>
+                        </div>
+
+                        {notif.type === 'comment' && (
+                            <p className="text-sm opacity-60 mt-1 italic border-l-2 border-base-300 pl-2 line-clamp-1">
+                                "{notif.message?.split(': "')[1]?.replace('"', '') || "..."}"
+                            </p>
+                        )}
+
+                        {/* Actions cho Friend Request */}
+                        {notif.type === 'friend_request' && (
+                            <div className="flex gap-3 mt-3">
+                                <button 
+                                    className="btn btn-primary btn-sm gap-1"
+                                    onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        // QUAN TRỌNG: Truyền notif._id (chính là Request ID)
+                                        acceptMutate(notif._id); 
+                                    }}
+                                    disabled={isAccepting || isDeclining}
+                                >
+                                    <Check className="size-4" /> Accept
+                                </button>
+                                <button 
+                                    className="btn btn-ghost btn-sm gap-1"
+                                    onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        // QUAN TRỌNG: Truyền notif._id (chính là Request ID)
+                                        declineMutate(notif._id); 
+                                    }} 
+                                    disabled={isAccepting || isDeclining}
+                                >
+                                    <X className="size-4" /> Decline
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className={`p-2 rounded-full bg-base-200 ${!notif.read ? 'text-primary' : 'opacity-50'}`}>
+                        {renderIcon(notif.type)}
+                    </div>
+
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

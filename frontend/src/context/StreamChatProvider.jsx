@@ -96,6 +96,24 @@ export const StreamChatProvider = ({ children }) => {
           queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
         });
 
+        client.on("notification_new", (event) => {
+            const { type, sender, message } = event.payload;
+            
+            // Hiển thị Toast
+            // Bạn có thể tùy chỉnh icon dựa trên type (like/comment)
+            const icon = type === "like" ? "❤️" : "💬";
+            
+            toast(message, {
+                icon: icon,
+                duration: 4000,
+                position: "top-right", // Hiện góc trên phải cho dễ thấy
+                style: {
+                    background: '#333',
+                    color: '#fff',
+                },
+            });
+        });
+
         client.on("member.added", (event) => {
           if (event.user?.id === authUser._id) {
             try {
@@ -122,6 +140,7 @@ export const StreamChatProvider = ({ children }) => {
       client.off("message.new");
       client.off("friendrequest_new");
       client.off("member.added");
+      client.off("notification_new");
       client.disconnectUser();
       setChatClient(null);
       setIsChatClientReady(false);

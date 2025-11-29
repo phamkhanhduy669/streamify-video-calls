@@ -1,67 +1,84 @@
 import "dotenv/config";
+import axios from "axios";
 
 export const getRandomWord = async (req, res) => {
   try {
     const { language } = req.params;
+    // Lấy nativeLanguage từ query param (?native=Vietnamese)
+    const { native } = req.query; 
+    
     const targetLang = language || "English";
+    // Nếu không có native, mặc định là English (hoặc Vietnamese tùy bạn)
+    const nativeLang = native || "English"; 
+
     const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!apiKey) throw new Error("API Key not found");
-    const modelName = "gemini-2.5-flash"; 
+    if (!apiKey) {
+      console.error("❌ LỖI: Thiếu API Key trong file .env");
+      return res.status(500).json({ message: "Server Error: Missing API Key" });
+    }
 
-    console.log(`🚀 Đang dùng model: ${modelName} để tạo từ vựng...`);
+    console.log(`🤖 Đang gọi AI lấy từ vựng: ${targetLang} (Giải nghĩa bằng: ${nativeLang})...`);
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
+    // Cập nhật prompt: Dùng biến nativeLang
     const promptText = `
       Generate a random, interesting vocabulary word for a student learning ${targetLang} (Level A2-B2).
-      Return ONLY a JSON object with this exact structure (no markdown, no code blocks):
+      Return ONLY a JSON object with this exact structure (no markdown, no code blocks, just raw JSON):
       {
         "word": "The word in ${targetLang}",
         "pronunciation": "IPA pronunciation",
-        "meaning": "Meaning in Vietnamese",
+        "meaning": "Meaning in ${nativeLang}", 
         "example": "A simple example sentence in ${targetLang}",
         "language": "${targetLang}"
       }
     `;
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const response = await axios.post(
+      url,
+      {
         contents: [{ parts: [{ text: promptText }] }],
-      }),
-    });
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("❌ Lỗi API:", JSON.stringify(errorData, null, 2));
-      throw new Error(errorData.error?.message || "Failed to fetch from Gemini API");
+    if (!response.data || !response.data.candidates || response.data.candidates.length === 0) {
+      throw new Error("Google API trả về dữ liệu rỗng.");
     }
 
-    const data = await response.json();
-    let text = data.candidates[0].content.parts[0].text;
-
-    // Làm sạch JSON
+    let text = response.data.candidates[0].content.parts[0].text;
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const wordData = JSON.parse(text);
+    
+    console.log(`✅ AI Trả về (Raw):`, text);
 
-    console.log("✅ Đã tạo từ:", wordData.word);
+    let wordData;
+    try {
+        wordData = JSON.parse(text);
+    } catch (parseError) {
+        console.error("❌ Lỗi Parse JSON:", parseError);
+        throw new Error("AI trả về format không đúng chuẩn JSON.");
+    }
+
+    console.log(`🎉 Đã tạo thành công từ: ${wordData.word} (${wordData.meaning})`);
+
     res.status(200).json(wordData);
 
   } catch (error) {
-    console.error("Error generating word (Direct Fetch):", error.message);
-    // Fallback
+    console.error("❌ Lỗi trong getRandomWord:", error.response?.data || error.message);
     res.status(200).json({
       word: "Ciao",
       pronunciation: "/tʃaʊ/",
-      meaning: "Xin chào (Fallback Mode)",
+      meaning: "Hello (AI busy)",
       example: "Ciao bella!",
       language: "Italian"
     });
   }
 };
 
+// ... (hàm translateText giữ nguyên) ...
 export const translateText = async (req, res) => {
   try {
     const { text, targetLanguage } = req.body;
@@ -69,7 +86,7 @@ export const translateText = async (req, res) => {
 
     if (!text) return res.status(400).json({ message: "Text is required" });
 
-    const lang = targetLanguage || "Vietnamese";
+    const lang = targetLanguage || "Vietnamese"; 
 
     console.log(`🤖 Đang dịch: "${text}" sang ${lang}`);
 
@@ -81,34 +98,25 @@ export const translateText = async (req, res) => {
       Text: "${text}"
     `;
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const response = await axios.post(
+      url,
+      {
         contents: [{ parts: [{ text: promptText }] }],
-      }),
-    });
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
-    const data = await response.json();
+    let translatedText = response.data.candidates[0].content.parts[0].text;
+    translatedText = translatedText.trim();
 
-    // 🔍 DEBUG: In ra lỗi thực sự từ Google nếu có
-    if (!data.candidates || data.candidates.length === 0) {
-        console.error("❌ LỖI TỪ GOOGLE API:", JSON.stringify(data, null, 2));
-        
-        // Trả về thông báo lỗi cho Frontend thay vì làm sập server
-        return res.status(500).json({ 
-            message: "Translation failed (Google API Error)", 
-            details: data.error?.message || "Unknown error"
-        });
-    }
-    
-    // Lấy kết quả an toàn
-    let translatedText = data.candidates[0].content.parts[0].text;
+    console.log(`✅ Kết quả dịch: "${translatedText}"`); 
 
     res.status(200).json({ translatedText });
 
   } catch (error) {
-    console.error("Translation Internal Error:", error);
+    console.error("Translation Error:", error.response?.data || error.message);
     res.status(500).json({ message: "Translation failed" });
   }
 };

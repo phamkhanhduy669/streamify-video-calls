@@ -11,7 +11,9 @@ import {
   updateProfile,
   deleteFriend,
   searchUsers,
-  markNotificationRead
+  getNotifications,
+  markNotificationRead,
+  declineFriendRequest
 } from "../controllers/user.controller.js";
 import { getRandomWord ,translateText} from "../controllers/word.controller.js";
 
@@ -37,5 +39,7 @@ router.get("/friend-requests", getFriendRequests);
 router.get("/outgoing-friend-requests", getOutgoingFriendReqs);
 router.delete("/friends/:id", deleteFriend);
 router.delete("/friend-request/read/:requestId", markNotificationRead);
-
+router.get("/notifications", protectRoute, getNotifications);
+router.put("/notifications/:id/read", protectRoute, markNotificationRead)
+router.delete("/friend-request/:id/decline", protectRoute, declineFriendRequest);
 export default router;

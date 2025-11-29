@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState, useRef,useEffect} from "react";
 import { getPosts, createPost, likePost, commentPost, deletePost, translateText } from "../lib/api";
 import {
   FileText,
@@ -19,10 +19,13 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import useAuthUser from "../hooks/useAuthUser";
+import { useLocation } from "react-router";
+
 
 const ForumPage = () => {
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
+  const location = useLocation();
   
   const [newPostContent, setNewPostContent] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
@@ -37,6 +40,24 @@ const ForumPage = () => {
     queryKey: ["posts"],
     queryFn: getPosts,
   });
+
+  useEffect(() => {
+    if (location.hash && posts.length > 0) {
+      const postId = location.hash.replace("#", "");
+      const element = document.getElementById(postId);
+      
+      if (element) {
+        // Cuộn đến phần tử
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        
+        // Thêm hiệu ứng highlight tạm thời để người dùng dễ nhận biết
+        element.classList.add("ring-2", "ring-primary", "ring-offset-2");
+        setTimeout(() => {
+          element.classList.remove("ring-2", "ring-primary", "ring-offset-2");
+        }, 2000);
+      }
+    }
+  }, [location.hash, posts]);
 
   // --- Mutations ---
   const { mutate: createPostMutation, isPending: isCreating } = useMutation({
@@ -323,7 +344,7 @@ const ForumPage = () => {
             const isOwner = authUser._id === post.author._id;
 
             return (
-              <div key={post._id} className="card bg-base-100 shadow-lg border border-base-200">
+              <div id={post._id} key={post._id} className="card bg-base-100 shadow-lg border border-base-200">
                 <div className="card-body p-5">
                   
                   {/* Header */}
