@@ -1,7 +1,7 @@
 Thành viên:
 - Nguyễn Mạnh Dũng - 23020520
 - Phạm Khánh Duy - 23020522
-- Dương Nguyễn Minh Đức - 23020522
+- Dương Nguyễn Minh Đức - 23020525
 
 > ## 📘 Sử dụng k8s 
 > 🔗 [Xem chi tiết tại đây](k8s/README.md)
