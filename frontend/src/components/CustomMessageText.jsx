@@ -14,8 +14,26 @@ import useAuthUser from "../hooks/useAuthUser";
 import { useReplyContext } from "../context/ReplyContext";
 
 const LANGUAGE_CODES = {
-  vietnamese: "vi", english: "en", french: "fr", spanish: "es", german: "de",
-  japanese: "ja", korean: "ko", chinese: "zh", russian: "ru",
+  english: "gb",
+  spanish: "es",
+  french: "fr",
+  german: "de",
+  mandarin: "cn",
+  japanese: "jp",
+  korean: "kr",
+  hindi: "in",
+  russian: "ru",
+  portuguese: "pt",
+  arabic: "sa",
+  italian: "it",
+  turkish: "tr",
+  dutch: "nl",
+  vietnamese: "vn",
+  chinese: "cn",
+  swedish: "se",
+  polish: "pl",
+  thai: "th",
+  indonesian: "id",
 };
 
 const CustomMessageText = (props) => {
