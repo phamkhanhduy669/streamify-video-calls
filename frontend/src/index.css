@@ -32,3 +32,16 @@
 .str-chat__message-input {
   border-top: 1px solid #ddd;
 }
+
+/* Ẩn nền mặc định để CustomMessageText hiện màu Theme đẹp hơn */
+.str-chat__message-simple__text-inner {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Ẩn giờ mặc định (vì component của mình có thể tự xử lý hoặc để cho gọn) */
+.str-chat__message-simple__timestamp {
+  display: none !important; 
+}

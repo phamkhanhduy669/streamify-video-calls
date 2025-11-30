@@ -94,7 +94,56 @@ export const searchUsers = async (query) => {
     return [];
   }
 };
-export async function markNotificationRead(requestId) {
-  const response = await axiosInstance.delete(`/users/friend-request/read/${requestId}`);
-  return response.data;
+export const getRandomWord = async (language, nativeLanguage) => {
+  const lang = language || "english";
+  // Mặc định native là English nếu không có
+  const native = nativeLanguage || "English"; 
+  
+  // Gửi nativeLanguage qua query param
+  const res = await axiosInstance.get(`/users/word/${lang}?native=${native}`);
+  return res.data;
+};
+export const getPosts = async () => {
+  const res = await axiosInstance.get("/posts");
+  return res.data;
+};
+
+export const createPost = async (postData) => {
+  const res = await axiosInstance.post("/posts", postData);
+  return res.data;
+};
+
+export const likePost = async (postId) => {
+  const res = await axiosInstance.put(`/posts/${postId}/like`);
+  return res.data;
+};
+
+export const commentPost = async ({ postId, text }) => {
+  const res = await axiosInstance.post(`/posts/${postId}/comment`, { text });
+  return res.data;
+};
+
+export const deletePost = async (postId) => {
+  const res = await axiosInstance.delete(`/posts/${postId}`);
+  return res.data;
+};
+
+export const translateText = async ({ text, targetLanguage }) => {
+  const res = await axiosInstance.post("/users/translate", { text, targetLanguage });
+  return res.data; // Trả về { translatedText: "..." }
+};
+
+export const getNotifications = async () => {
+  const res = await axiosInstance.get("/users/notifications");
+  return res.data;
+};
+
+export const markNotificationRead = async (notificationId) => {
+    const res = await axiosInstance.put(`/users/notifications/${notificationId}/read`);
+    return res.data;
+}
+
+export const declineFriendRequest = async (requestId) => {
+  const res = await axiosInstance.delete(`/users/friend-request/${requestId}/decline`);
+  return res.data;
 }

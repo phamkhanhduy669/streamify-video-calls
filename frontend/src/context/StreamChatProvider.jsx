@@ -47,11 +47,10 @@ export const StreamChatProvider = ({ children }) => {
           );
         }
 
-        // --- LẮNG NGHE SỰ KIỆN TOÀN CỤC ---
         client.on("message.new", (event) => {
-          if (event.user.id === authUser._id) return; // Không thông báo cho chính mình
+          if (event.user.id === authUser._id) return;
 
-          // 1. XỬ LÝ CUỘC GỌI ĐẾN (Logic Global)
+          // --- [START] LOGIC HIỂN THỊ THÔNG BÁO CUỘC GỌI ---
           if (event.message.custom_type === "call_ring") {
             const { callId, callerName, callerImage } = event.message;
 
@@ -59,7 +58,9 @@ export const StreamChatProvider = ({ children }) => {
             try {
               const audio = new Audio("/sound/notification.mp3");
               audio.play().catch(() => {});
-            } catch (e) {}
+            } catch (e) {
+              // Ignore audio error
+            }
 
             // Hiển thị Toast thông báo cuộc gọi
             toast.custom(
@@ -92,7 +93,7 @@ export const StreamChatProvider = ({ children }) => {
                         <button
                             onClick={() => {
                               toast.dismiss(t.id);
-                              // Dùng window.location.href để đảm bảo chuyển trang được từ mọi nơi
+                              // Chuyển hướng đến trang cuộc gọi
                               window.location.href = `/call/${callId}`;
                             }}
                             className="w-full border border-transparent rounded-tr-lg p-3 flex items-center justify-center text-sm font-medium text-indigo-600 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -109,26 +110,28 @@ export const StreamChatProvider = ({ children }) => {
                     </div>
                 ),
                 {
-                  duration: 20000, // Đổ chuông 20s
+                  duration: 20000, // Đổ chuông 20 giây
                   position: "top-center",
-                  id: `call-${callId}`, // Tránh trùng lặp toast
+                  id: callId, // [QUAN TRỌNG] Gán ID để tránh trùng lặp, nhưng vẫn đảm bảo hiện nếu ID khác nhau
                 }
             );
-            return; // Dừng lại, không xử lý như tin nhắn thường
+            return; // Dừng xử lý, không hiện thông báo tin nhắn thường
           }
+          // --- [END] LOGIC CUỘC GỌI ---
 
-          // 2. XỬ LÝ TIN NHẮN THƯỜNG (Logic cũ)
+          // Logic tin nhắn thường (Giữ nguyên)
+          console.log("[StreamChat] message.new event:", event);
           const senderId = event.user.id;
           setUnreadMap((prev) => ({
             ...prev,
             [senderId]: (prev[senderId] || 0) + 1,
           }));
-
           try {
             const audio = new Audio("/sound/notification.mp3");
             audio.play().catch(() => {});
-          } catch (e) {}
-
+          } catch {
+            // ignore
+          }
           if (!event.channel || !event.channel.state?.members) {
             const memberCount = event.channel_member_count || 2;
             const channelName = event.channel_custom?.name || event.cid || "Group";
@@ -139,7 +142,6 @@ export const StreamChatProvider = ({ children }) => {
             }
             return;
           }
-
           const channelName = event.channel.data?.name;
           const channelType = event.channel.type;
           const memberCount = event.channel.state?.members
@@ -147,7 +149,9 @@ export const StreamChatProvider = ({ children }) => {
               : 2;
 
           if (channelName || memberCount > 2 || channelType === "group") {
-            toast.success(`💬 Tin nhắn mới trong nhóm: ${channelName || "Group"}`);
+            toast.success(
+                `💬 Tin nhắn mới trong nhóm: ${channelName || "Group"}`
+            );
           } else {
             toast(`💬 New message from ${event.user.name}`);
           }
@@ -159,12 +163,29 @@ export const StreamChatProvider = ({ children }) => {
           queryClient.invalidateQueries({ queryKey: ["friendRequests"] });
         });
 
+        client.on("notification_new", (event) => {
+          const { type, message } = event.payload;
+          const icon = type === "like" ? "❤️" : "💬";
+
+          toast(message, {
+            icon: icon,
+            duration: 4000,
+            position: "top-right",
+            style: {
+              background: '#333',
+              color: '#fff',
+            },
+          });
+        });
+
         client.on("member.added", (event) => {
           if (event.user?.id === authUser._id) {
             try {
               const audio = new Audio("/sound/notification.mp3");
               audio.play().catch(() => {});
-            } catch (e) {}
+            } catch {
+              // ignore
+            }
             toast.success("You have been added to a chat group!");
           }
         });
@@ -183,6 +204,7 @@ export const StreamChatProvider = ({ children }) => {
       client.off("message.new");
       client.off("friendrequest_new");
       client.off("member.added");
+      client.off("notification_new");
       client.disconnectUser();
       setChatClient(null);
       setIsChatClientReady(false);
