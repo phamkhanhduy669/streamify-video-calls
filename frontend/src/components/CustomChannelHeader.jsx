@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChannelHeader, useChannelStateContext, useChatContext } from "stream-chat-react";
-import { useNavigate } from "react-router-dom"; // Import navigate
+import { useNavigate } from "react-router"; // Import navigate
 import AddMemberModal from "./AddMemberModal";
 import GroupSettingsModal from "./GroupSettingsModal";
 import { UserPlus, Settings, Video } from "lucide-react"; // Import icon Video
