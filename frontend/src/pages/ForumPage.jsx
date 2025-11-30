@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef,useEffect} from "react";
+import { useState, useRef, useEffect } from "react";
 import { getPosts, createPost, likePost, commentPost, deletePost, translateText } from "../lib/api";
 import {
   FileText,
@@ -15,17 +15,21 @@ import {
   Loader2,
   FileSpreadsheet,
   FileCode,
-  File
+  File,
+  Search
 } from "lucide-react";
 import toast from "react-hot-toast";
 import useAuthUser from "../hooks/useAuthUser";
 import { useLocation } from "react-router";
-
+import { useSearchStore } from "../store/useSearchStore";
 
 const ForumPage = () => {
   const { authUser } = useAuthUser();
   const queryClient = useQueryClient();
   const location = useLocation();
+  
+  // --- LẤY SEARCH QUERY ---
+  const { searchQuery, setSearchQuery } = useSearchStore();
   
   const [newPostContent, setNewPostContent] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
@@ -41,16 +45,17 @@ const ForumPage = () => {
     queryFn: getPosts,
   });
 
+  const filteredPosts = searchQuery 
+    ? posts.filter(post => post.content.toLowerCase().includes(searchQuery.toLowerCase()))
+    : posts;
+
   useEffect(() => {
     if (location.hash && posts.length > 0) {
       const postId = location.hash.replace("#", "");
       const element = document.getElementById(postId);
       
       if (element) {
-        // Cuộn đến phần tử
         element.scrollIntoView({ behavior: "smooth", block: "center" });
-        
-        // Thêm hiệu ứng highlight tạm thời để người dùng dễ nhận biết
         element.classList.add("ring-2", "ring-primary", "ring-offset-2");
         setTimeout(() => {
           element.classList.remove("ring-2", "ring-primary", "ring-offset-2");
@@ -96,7 +101,6 @@ const ForumPage = () => {
   });
 
   // --- Handlers ---
-  
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -104,7 +108,6 @@ const ForumPage = () => {
            toast.error("File size too large (Max 10MB)");
            return;
       }
-
       if (file.type.startsWith("image/")) {
           setFileType("image");
       } else if (file.type.includes("pdf")) {
@@ -178,11 +181,9 @@ const ForumPage = () => {
 
   const renderFilePreview = () => {
       if (!selectedFile) return null;
-
       if (fileType === "image") {
           return <img src={selectedFile} alt="Selected" className="max-h-60 rounded-lg w-full object-cover" />;
       }
-
       return (
           <div className="flex items-center gap-3 p-4 bg-base-200 rounded-lg">
               {renderFileIcon(fileType)}
@@ -194,23 +195,16 @@ const ForumPage = () => {
       );
   }
 
-  // ✅ HÀM XỬ LÝ URL TẢI XUỐNG THÔNG MINH
   const getDownloadUrl = (url, fileType) => {
       if (!url) return "#";
-      
-      // Nếu là ảnh, thêm fl_attachment để ép tải xuống
       if (fileType === "image" || fileType === "img") {
           return url.replace("/upload/", "/upload/fl_attachment/");
       }
-      
-      // Nếu là file raw (PDF, Doc...), giữ nguyên URL gốc để tránh lỗi 404/401
-      // Trình duyệt sẽ tự xử lý: PDF mở tab mới, Doc tự tải xuống
       return url;
   };
 
   const renderPostFile = (post) => {
       if (!post.image) return null;
-
       const isImage = post.fileType === "image" || post.fileType === "img" || post.image.match(/\.(jpeg|jpg|gif|png|webp)$/) != null;
 
       if (isImage) {
@@ -225,7 +219,6 @@ const ForumPage = () => {
 
       let icon = <File className="size-10 text-gray-500" />;
       let label = "Attached File";
-
       if (post.image.includes(".pdf")) {
           icon = <FileText className="size-10 text-red-500" />;
           label = "PDF Document";
@@ -244,15 +237,13 @@ const ForumPage = () => {
                 <h4 className="font-bold text-sm truncate">{label}</h4>
                 <p className="text-xs opacity-60">Click icon to download</p>
             </div>
-            
-            {/* ✅ SỬA LỖI: Dùng getDownloadUrl thông minh */}
             <a 
                 href={getDownloadUrl(post.image, post.fileType)} 
                 className="btn btn-sm btn-ghost btn-circle group-hover:bg-base-100"
                 title="Download"
-                target="_blank"             // Mở tab mới cho an toàn
+                target="_blank"
                 rel="noopener noreferrer"
-                download                    // Gợi ý trình duyệt tải xuống
+                download
             >
                 <Download className="size-5" />
             </a>
@@ -266,87 +257,118 @@ const ForumPage = () => {
     <div className="p-4 md:p-8 min-h-screen bg-base-100">
       <div className="max-w-3xl mx-auto space-y-6">
         
-        <h1 className="text-3xl font-bold mb-4 flex items-center gap-2">
-            <MessageSquare className="size-8 text-primary" /> Community Forum
+        {/* HEADER: Tiêu đề + Nút X đơn giản */}
+        <h1 className="text-3xl font-bold mb-4 flex items-center gap-3">
+            {searchQuery ? (
+                <>
+                  <div className="flex items-center gap-2 text-primary">
+                     <Search className="size-8" />
+                  </div>
+                  <div className="flex-1">
+                      <span className="opacity-70 font-normal text-xl block sm:inline">Search Results: </span>
+                      <span className="text-2xl text-base-content break-all">"{searchQuery}"</span>
+                  </div>
+                  <button 
+                    onClick={() => setSearchQuery("")} 
+                    className="btn btn-ghost btn-sm px-2 hover:bg-transparent text-base-content/60 hover:text-red-500 transition-colors"
+                    title="Clear Search"
+                  >
+                     <X className="size-7" />
+                  </button>
+                </>
+            ) : (
+                <>
+                  <MessageSquare className="size-8 text-primary" /> Community Forum
+                </>
+            )}
         </h1>
 
-        {/* CREATE POST WIDGET */}
-        <div className="card bg-base-200 shadow-sm border border-base-300">
-          <div className="card-body">
-            <div className="flex gap-4">
-              <div className="avatar">
-                <div className="w-10 h-10 rounded-full">
-                  <img src={authUser?.profilePic || "/avatar.png"} alt="avatar" />
+        {/* Empty State */}
+        {searchQuery && filteredPosts.length === 0 && (
+             <div className="text-center py-10 opacity-70">
+                 <p className="text-lg">No posts found matching "{searchQuery}"</p>
+                 <button 
+                    className="btn btn-link text-primary"
+                    onClick={() => setSearchQuery("")}
+                 >
+                    Show all posts
+                 </button>
+             </div>
+        )}
+
+        {/* Create Post Widget (Ẩn khi đang tìm kiếm) */}
+        {!searchQuery && (
+          <div className="card bg-base-200 shadow-sm border border-base-300">
+            <div className="card-body">
+              <div className="flex gap-4">
+                <div className="avatar">
+                  <div className="w-10 h-10 rounded-full">
+                    <img src={authUser?.profilePic || "/avatar.png"} alt="avatar" />
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1 space-y-3">
-                <form onSubmit={handlePostSubmit}>
-                    <textarea
-                        className="textarea textarea-bordered w-full text-base resize-none"
-                        placeholder="Share your thoughts or ask a question..."
-                        rows={3}
-                        value={newPostContent}
-                        onChange={(e) => setNewPostContent(e.target.value)}
-                    />
-                    
-                    {selectedFile && (
-                        <div className="relative mt-3 p-2 border border-base-300 rounded-lg bg-base-100">
-                            {renderFilePreview()}
-                            
-                            <button
-                                type="button" 
-                                className="absolute -top-2 -right-2 btn btn-circle btn-xs btn-error text-white shadow-md"
-                                onClick={() => {
-                                    setSelectedFile(null);
-                                    if(fileInputRef.current) fileInputRef.current.value = "";
-                                }}
-                            >
-                                <X className="size-4" />
-                            </button>
-                        </div>
-                    )}
-
-                    <div className="flex justify-between items-center mt-3">
-                        <div 
-                            className="cursor-pointer text-primary hover:text-primary-focus flex items-center gap-2 transition-colors"
-                            onClick={() => fileInputRef.current.click()}
-                        >
-                            <Paperclip className="size-5" />
-                            <span className="text-sm font-medium">Attach File / Image</span>
-                        </div>
-                        
-                        <input 
-                            type="file" 
-                            hidden 
-                            ref={fileInputRef} 
-                            accept="image/*, .pdf, .doc, .docx, .xls, .xlsx, .txt" 
-                            onChange={handleFileChange} 
-                        />
-
-                        <button 
-                            type="submit" 
-                            className="btn btn-primary btn-sm"
-                            disabled={isCreating || (!newPostContent.trim() && !selectedFile)}
-                        >
-                            {isCreating ? "Posting..." : "Post"} <Send className="size-4 ml-1" />
-                        </button>
-                    </div>
-                </form>
+                <div className="flex-1 space-y-3">
+                  <form onSubmit={handlePostSubmit}>
+                      <textarea
+                          className="textarea textarea-bordered w-full text-base resize-none"
+                          placeholder="Share your thoughts or ask a question..."
+                          rows={3}
+                          value={newPostContent}
+                          onChange={(e) => setNewPostContent(e.target.value)}
+                      />
+                      {selectedFile && (
+                          <div className="relative mt-3 p-2 border border-base-300 rounded-lg bg-base-100">
+                              {renderFilePreview()}
+                              <button
+                                  type="button" 
+                                  className="absolute -top-2 -right-2 btn btn-circle btn-xs btn-error text-white shadow-md"
+                                  onClick={() => {
+                                      setSelectedFile(null);
+                                      if(fileInputRef.current) fileInputRef.current.value = "";
+                                  }}
+                              >
+                                  <X className="size-4" />
+                              </button>
+                          </div>
+                      )}
+                      <div className="flex justify-between items-center mt-3">
+                          <div 
+                              className="cursor-pointer text-primary hover:text-primary-focus flex items-center gap-2 transition-colors"
+                              onClick={() => fileInputRef.current.click()}
+                          >
+                              <Paperclip className="size-5" />
+                              <span className="text-sm font-medium">Attach File / Image</span>
+                          </div>
+                          <input 
+                              type="file" 
+                              hidden 
+                              ref={fileInputRef} 
+                              accept="image/*, .pdf, .doc, .docx, .xls, .xlsx, .txt" 
+                              onChange={handleFileChange} 
+                          />
+                          <button 
+                              type="submit" 
+                              className="btn btn-primary btn-sm"
+                              disabled={isCreating || (!newPostContent.trim() && !selectedFile)}
+                          >
+                              {isCreating ? "Posting..." : "Post"} <Send className="size-4 ml-1" />
+                          </button>
+                      </div>
+                  </form>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* POSTS FEED */}
+        {/* Post Feed */}
         <div className="space-y-4">
-          {posts.map((post) => {
+          {filteredPosts.map((post) => {
             const isLiked = post.likes.includes(authUser._id);
             const isOwner = authUser._id === post.author._id;
 
             return (
               <div id={post._id} key={post._id} className="card bg-base-100 shadow-lg border border-base-200">
                 <div className="card-body p-5">
-                  
                   {/* Header */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -366,11 +388,9 @@ const ForumPage = () => {
                         </button>
                     )}
                   </div>
-
                   {/* Content */}
                   <p className="text-base mb-2 whitespace-pre-wrap">{post.content}</p>
-
-                  {/* Translate Button */}
+                  {/* Translate */}
                   <div className="mb-3">
                     <button 
                         onClick={() => handleTranslate(post._id, post.content)}
@@ -380,17 +400,14 @@ const ForumPage = () => {
                         {isTranslating[post._id] ? <Loader2 className="size-3 animate-spin" /> : <Languages className="size-3" />}
                         {translatedPosts[post._id] ? "Show Original" : "Translate with AI"}
                     </button>
-
                     {translatedPosts[post._id] && (
                         <div className="mt-2 p-3 bg-base-200 rounded-lg text-sm border-l-4 border-primary animate-in fade-in slide-in-from-top-2">
                             <p className="opacity-80 italic">{translatedPosts[post._id]}</p>
                         </div>
                     )}
                   </div>
-
                   {/* File Display */}
                   {renderPostFile(post)}
-
                   {/* Actions */}
                   <div className="flex items-center gap-4 border-t border-base-200 pt-3 mt-3">
                     <button onClick={() => likeMutation(post._id)} className={`btn btn-ghost btn-sm gap-2 ${isLiked ? "text-error" : ""}`}>
@@ -402,7 +419,6 @@ const ForumPage = () => {
                       {post.comments.length}
                     </button>
                   </div>
-
                   {/* Comments */}
                   <div className="bg-base-200 rounded-lg p-3 mt-3 space-y-3">
                     {post.comments.length > 0 && (
@@ -437,16 +453,13 @@ const ForumPage = () => {
                          </button>
                     </form>
                   </div>
-
                 </div>
               </div>
             );
           })}
         </div>
-
       </div>
     </div>
   );
 };
-
 export default ForumPage;
