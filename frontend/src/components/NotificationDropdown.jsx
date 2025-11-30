@@ -124,7 +124,6 @@ const NotificationDropdown = () => {
                     {notifications.map((notif) => (
                       <div
                         key={notif._id}
-                        // ✅ Gọi hàm xử lý click mới
                         onClick={() => handleNotificationClick(notif)}
                         className={`flex items-start gap-3 p-3 hover:bg-base-200 transition-colors border-b border-base-200 last:border-none cursor-pointer group relative ${
                           notif.read ? "opacity-60 bg-base-100" : "bg-base-200/40"
@@ -133,8 +132,8 @@ const NotificationDropdown = () => {
                         <div className="avatar mt-1">
                           <div className="w-10 h-10 rounded-full">
                             <img
-                              src={notif.sender.profilePic || "/avatar.png"}
-                              alt={notif.sender.fullName}
+                              src={notif?.sender?.profilePic || "/avatar.png"}
+                              alt={notif?.sender?.fullName || "Unknown User"}
                             />
                           </div>
                         </div>
@@ -142,7 +141,7 @@ const NotificationDropdown = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start">
                             <p className="text-sm text-base-content">
-                              <span className="font-bold mr-1">{notif.sender.fullName}</span>
+                              <span className="font-bold mr-1">{notif?.sender?.fullName || "Unknown User"}</span>
                               {notif.type === "like" && "liked your post."}
                               {notif.type === "comment" && "commented on your post."}
                               {notif.type === "friend_request" && "sent you a friend request."}

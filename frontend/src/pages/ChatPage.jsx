@@ -81,7 +81,7 @@ const ChatPage = () => {
                 {/* Nút gọi video */}
                 <div className="absolute top-3 right-4 z-50">
                    <CallButton handleVideoCall={handleVideoCall} />
-                </div>
+                </div> 
 
                 <Window>
                   <CustomChannelHeader />
