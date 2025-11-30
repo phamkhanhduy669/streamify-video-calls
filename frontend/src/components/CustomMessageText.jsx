@@ -75,11 +75,11 @@ const CustomMessageText = (props) => {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Bạn có chắc muốn thu hồi tin nhắn này?")) return;
+    if (!window.confirm("Are you sure you want to revoke this message?")) return;
     try {
       await client.deleteMessage(message.id); 
     } catch {
-      toast.error("Thu hồi thất bại");
+      toast.error("Failed to revoke message");
     }
   };
 
@@ -108,7 +108,7 @@ const CustomMessageText = (props) => {
         <div className={`p-2 px-3 shadow-sm transition-all duration-200 w-fit max-w-full ${deletedClass}`}>
           <div className="flex items-center gap-2">
             <Ban className="w-4 h-4 opacity-70" />
-            <span className="italic text-sm opacity-80">Tin nhắn đã bị thu hồi</span>
+            <span className="italic text-sm opacity-80">Message has been revoked</span>
           </div>
         </div>
       );
@@ -155,19 +155,19 @@ const CustomMessageText = (props) => {
         
         {/* HIỂN THỊ PHẦN TRÍCH DẪN */}
         {message.quoted_message && (
-          <div className={`mb-2 p-2 rounded-lg text-xs border-l-4 opacity-90 shadow-sm select-none ${
+           <div className={`mb-2 p-2 rounded-lg text-xs border-l-4 opacity-90 shadow-sm select-none ${
              isMyMessage 
-                ? "bg-black/10 border-white/50 text-white" 
-                : "bg-base-300/50 border-primary text-base-content"
-          }`}>
+               ? "bg-black/10 border-white/50 text-white" 
+               : "bg-base-300/50 border-primary text-base-content"
+           }`}>
              <div className="font-bold mb-0.5 flex items-center gap-1 opacity-90">
-                <Reply className="w-3 h-3" />
-                {message.quoted_message.user?.name || "Người dùng"}
+               <Reply className="w-3 h-3" />
+               {message.quoted_message.user?.name || "User"}
              </div>
              <div className="truncate max-w-[200px] italic opacity-80">
-               {message.quoted_message.text || "Đính kèm"}
+              {message.quoted_message.text || "Attachment"}
              </div>
-          </div>
+           </div>
         )}
 
         {/* 3. HIỂN THỊ ATTACHMENTS (ĐÃ FIX LỖI) */}
@@ -241,6 +241,7 @@ const CustomMessageText = (props) => {
               <button onClick={handleReply} className="btn btn-ghost btn-xs btn-circle text-base-content/70" title="Reply"><Reply className="w-3.5 h-3.5" /></button>
               <button onClick={handlePin} className="btn btn-ghost btn-xs btn-circle text-base-content/70" title="Pin"><Pin className={`w-3.5 h-3.5 ${message.pinned ? "fill-current" : ""}`} /></button>
               <button onClick={handleDelete} className="btn btn-ghost btn-xs btn-circle text-error" title="Thu hồi"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <button onClick={handleDelete} className="btn btn-ghost btn-xs btn-circle text-error" title="Revoke"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           )}
 
