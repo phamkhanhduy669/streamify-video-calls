@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { BellIcon, HomeIcon, ShipWheelIcon, UsersIcon, UserPlus, MessagesSquare, MessageCirclePlus} from "lucide-react"; // ✅ Import UserPlus
 import { useStreamChat } from "../context/StreamChatProvider";
