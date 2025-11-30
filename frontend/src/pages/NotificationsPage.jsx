@@ -88,14 +88,14 @@ const NotificationsPage = () => {
                     
                     <div className="avatar mt-1">
                         <div className="w-12 h-12 rounded-full ring ring-base-300 ring-offset-base-100 ring-offset-1">
-                            <img src={notif.sender.profilePic || "/avatar.png"} alt={notif.sender.fullName} />
+                            <img src={(notif.sender?.profilePic) || "/avatar.png"} alt={notif.sender?.fullName || "User"} />
                         </div>
                     </div>
 
                     <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start">
                             <p className="font-medium text-base">
-                                <span className="font-bold">{notif.sender.fullName}</span> 
+                              <span className="font-bold">{notif.sender?.fullName || "User"}</span> 
                                 <span className="opacity-80 ml-1">
                                     {notif.type === 'like' && "liked your post."}
                                     {notif.type === 'comment' && "commented on your post."}
