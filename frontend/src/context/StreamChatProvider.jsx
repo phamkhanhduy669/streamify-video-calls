@@ -58,7 +58,7 @@ export const StreamChatProvider = ({ children }) => {
             try {
               const audio = new Audio("/sound/notification.mp3");
               audio.play().catch(() => {});
-            } catch (e) {
+            } catch {
               // Ignore audio error
             }
 
