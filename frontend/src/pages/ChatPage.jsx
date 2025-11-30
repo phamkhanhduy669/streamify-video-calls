@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useParams } from "react-router-dom";
 import { useStreamChat } from "../context/StreamChatProvider";
 import useAuthUser from "../hooks/useAuthUser";
 
@@ -9,27 +9,18 @@ import {
   MessageList,
   Window,
   Thread,
-  MessageSimple,
 } from "stream-chat-react";
 
 import ChatLoader from "../components/ChatLoader";
-import CallButton from "../components/CallButton";
 import toast from "react-hot-toast";
 import CustomChannelHeader from "../components/CustomChannelHeader";
 import CustomMessageText from "../components/CustomMessageText";
-
-// 1. IMPORT CÁC FILE BẠN ĐÃ TẠO
-import CustomMessageInput from "../components/CustomMessageInput"; 
+import CustomMessageInput from "../components/CustomMessageInput";
 import { ReplyProvider } from "../context/ReplyContext";
-
-// 2. Wrapper để giữ Avatar + Giao diện của bạn
-const CustomMessageWrapper = (props) => {
-  return <MessageSimple {...props} MessageText={CustomMessageText} />;
-};
 
 const ChatPage = () => {
   const { id: channelId } = useParams();
-  const { chatClient } = useStreamChat();
+  const { chatClient, isChatClientReady } = useStreamChat();
   const { authUser } = useAuthUser();
 
   const [channel, setChannel] = useState(null);
@@ -37,7 +28,8 @@ const ChatPage = () => {
 
   // Setup Channel
   useEffect(() => {
-    if (!chatClient || !chatClient.user || !authUser) return;
+    if (!isChatClientReady || !chatClient || !chatClient.user || !authUser) return;
+
     const setupChannel = async () => {
       try {
         if (!channelId) { setLoading(false); return; }
@@ -54,50 +46,34 @@ const ChatPage = () => {
     };
     setupChannel();
     return () => { setChannel(null); setLoading(true); };
-  }, [chatClient, authUser, channelId]);
+  }, [chatClient, authUser, channelId, isChatClientReady]);
 
-  const handleVideoCall = () => {
-    const callUrl = `${window.location.origin}/call/${channel.id}`;
-    channel.sendMessage({
-      text: "📞 Incoming Video Call...", 
-      attachments: [{ type: "video_call", call_url: callUrl }],
-    });
-    window.open(callUrl, "_blank");
-    toast.success("Starting video call...");
-  };
-
-  if (loading || !chatClient || !channel) return <ChatLoader />;
+  if (!isChatClientReady || loading || !chatClient || !channel) return <ChatLoader />;
 
   return (
-    <div className="h-[93vh] bg-base-200">
-      <Chat client={chatClient}>
-        {/* Sử dụng CustomMessageWrapper để có Avatar + Text Custom */}
-        <Channel channel={channel} Message={CustomMessageText}>
-          
-          {/* 3. QUAN TRỌNG: Bọc ReplyProvider để tính năng Reply hoạt động */}
-          <ReplyProvider>
-            <div className="w-full relative h-full flex flex-col bg-transparent">
-                
-                {/* Nút gọi video */}
-                <div className="absolute top-3 right-4 z-50">
-                   <CallButton handleVideoCall={handleVideoCall} />
-                </div> 
+      <div className="h-[93vh] bg-base-200">
+        <Chat client={chatClient}>
+          <Channel channel={channel} Message={CustomMessageText}>
+            <ReplyProvider>
+              <div className="w-full relative h-full flex flex-col bg-transparent">
+
+                {/* Đã xóa CallButton ở đây */}
 
                 <Window>
+                  {/* CustomChannelHeader giờ đã chứa nút gọi video */}
                   <CustomChannelHeader />
-                  <MessageList />
-                  
-                  {/* 4. DÙNG INPUT TÙY CHỈNH (Thay vì MessageInput gốc) */}
-                  <CustomMessageInput />
-                  
-                </Window>
-            </div>
-          </ReplyProvider>
 
-          <Thread />
-        </Channel>
-      </Chat>
-    </div>
+                  <MessageList />
+
+                  <CustomMessageInput />
+                </Window>
+              </div>
+            </ReplyProvider>
+
+            <Thread />
+          </Channel>
+        </Chat>
+      </div>
   );
 };
 

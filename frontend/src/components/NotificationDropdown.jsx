@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellIcon, UserCheckIcon, UserPlus, Heart, MessageCircle, Check, X } from "lucide-react";
 import { getNotifications, markNotificationRead, acceptFriendRequest, declineFriendRequest } from "../lib/api";
 import toast from "react-hot-toast";
-import { Link, useNavigate } from "react-router"; // Thêm useNavigate
+import { Link, useNavigate } from "react-router-dom"; // Thêm useNavigate
 import { formatDistanceToNow } from "date-fns";
 
 const NotificationDropdown = () => {

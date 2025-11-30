@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import useAuthUser from "../hooks/useAuthUser";
 import { MessageCircle, UserPlus, Users, Zap, BookOpen, Star, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";

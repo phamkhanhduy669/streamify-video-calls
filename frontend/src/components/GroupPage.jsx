@@ -4,7 +4,7 @@ import { useStreamChat } from "../context/StreamChatProvider";
 import CreateGroupModal from "../components/CreateGroupModal";
 import ChatLoader from "../components/ChatLoader";
 import { Plus, Users, MessageSquare, Clock, MessageCirclePlus } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 
 // Custom Group Card Component
 const GroupCard = ({ channel, onClick }) => {
