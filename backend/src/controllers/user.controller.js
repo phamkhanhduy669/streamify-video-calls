@@ -1,7 +1,7 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
 import { streamClient, upsertStreamUser } from "../lib/stream.js"
-
+import Notification from "../models/Notification.js";
 export const deleteFriend = async (req, res) => {
   try {
     const { id: friendId } = req.params;
@@ -298,27 +298,84 @@ export const searchUsers = async (req, res) => {
   }
 };
 
-export const markNotificationRead = async (req, res) => {
+export const getNotifications = async (req, res) => {
   try {
-    const { requestId } = req.params;
     const userId = req.user._id;
-    
-    const updatedRequest = await FriendRequest.findOneAndUpdate(
-      {
-        _id: requestId,
-        $or: [{ sender: userId }, { recipient: userId }]
-      },
-      { read: true },
-      { new: true }
+
+    // 1. Lấy thông báo Like/Comment từ bảng Notification
+    const notifications = await Notification.find({ recipient: userId })
+      .populate("sender", "fullName profilePic")
+      .sort({ createdAt: -1 })
+      .lean(); // Dùng lean() để dễ chỉnh sửa object
+
+    // 2. Lấy thông báo Friend Request từ bảng FriendRequest
+    const friendRequests = await FriendRequest.find({
+      recipient: userId,
+      status: "pending", // Chỉ lấy pending
+    })
+      .populate("sender", "fullName profilePic")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // 3. Chuẩn hóa dữ liệu FriendRequest để giống format của Notification
+    const formattedFriendRequests = friendRequests.map(req => ({
+      _id: req._id,
+      sender: req.sender,
+      recipient: req.recipient,
+      type: "friend_request", // Gán type để frontend nhận biết
+      message: "sent you a friend request",
+      read: false, // Friend request pending coi như chưa đọc
+      createdAt: req.createdAt,
+      isFriendRequest: true // Flag đánh dấu để hiện nút Accept/Decline
+    }));
+
+    // 4. Gộp chung và sắp xếp lại theo thời gian mới nhất
+    const allNotifications = [...notifications, ...formattedFriendRequests].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
 
-    if (!updatedRequest) {
-      return res.status(404).json({ message: "Notification not found" });
+    res.status(200).json(allNotifications);
+  } catch (error) {
+    console.error("Error fetching notifications:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+export const markNotificationRead = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Chỉ update trong bảng Notification
+        await Notification.findByIdAndUpdate(id, { read: true });
+        res.status(200).json({ message: "Marked as read" });
+    } catch (error) {
+        // Nếu không tìm thấy trong Notification (có thể là FriendRequest), ta cứ trả về 200 để frontend không lỗi
+        res.status(200).json({ message: "Ignored (FriendRequest cannot be marked read)" });
+    }
+};
+
+export const declineFriendRequest = async (req, res) => {
+  try {
+    const { id: requestId } = req.params;
+    const userId = req.user._id;
+
+    const request = await FriendRequest.findById(requestId);
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
     }
 
-    res.status(200).json({ message: "Marked as read", data: updatedRequest });
+    // Chỉ người nhận (recipient) mới có quyền từ chối
+    if (request.recipient.toString() !== userId.toString()) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    // Xóa lời mời
+    await FriendRequest.findByIdAndDelete(requestId);
+
+    res.status(200).json({ message: "Friend request declined" });
   } catch (error) {
-    console.log("Error in markNotificationRead:", error);
+    console.log("Error in declineFriendRequest controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
