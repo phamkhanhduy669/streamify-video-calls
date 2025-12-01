@@ -24,6 +24,16 @@ import PageLoader from "../components/PageLoader";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
+const closeCallWindow = () => {
+    // Kiểm tra xem có phải là cửa sổ popup không (có window.opener)
+    if (window.opener) {
+      window.close();
+    } else {
+      // Nếu lỡ mở trực tiếp bằng link thì quay về trang chủ
+      navigate("/");
+    }
+  };
+
 const CallPage = () => {
   const { id: callId } = useParams();
   const [client, setClient] = useState(null);
@@ -168,7 +178,7 @@ const CallContent = ({ callId, token, authUser }) => {
   // Logic Timer đếm ngược
   useEffect(() => {
     if (participantCount === 1 && !targetEndTime) {
-      setTargetEndTime(Date.now() + 30000);
+      setTargetEndTime(Date.now() + 90000);
     } else if (participantCount > 1) {
       setTargetEndTime(null);
       setTimeLeft(null);
@@ -191,7 +201,7 @@ const CallContent = ({ callId, token, authUser }) => {
         await endCallSession();
 
         toast("Call ended because no one else is here.");
-        navigate("/");
+        closeCallWindow();
       } else {
         setTimeLeft(remaining);
       }
@@ -208,7 +218,7 @@ const CallContent = ({ callId, token, authUser }) => {
         if (participantCount <= 1) {
           await endCallSession();
         }
-        navigate("/");
+        closeCallWindow();
       }
     };
     handleManualLeave();
