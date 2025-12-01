@@ -121,7 +121,6 @@ const CallContent = ({ callId, token, authUser, navigate }) => {
   const { useCallCallingState, useParticipantCount } = useCallStateHooks();
   const callingState = useCallCallingState();
   const participantCount = useParticipantCount();
-  const navigate = useNavigate();
 
   const [targetEndTime, setTargetEndTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
