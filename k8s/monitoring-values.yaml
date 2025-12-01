@@ -39,6 +39,9 @@ alertmanager:
             --------------------------------
           {{ end }}
 
+grafana:
+  adminPassword: admin123
+
 # Tắt monitor các thành phần hệ thống để tránh lỗi etcd đỏ
 kubeEtcd:
   enabled: false
