@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChannelHeader, useChannelStateContext, useChatContext } from "stream-chat-react";
-import { useNavigate } from "react-router"; // Import navigate
+// import { useNavigate } from "react-router"; // Import navigate
 import AddMemberModal from "./AddMemberModal";
 import GroupSettingsModal from "./GroupSettingsModal";
 import { UserPlus, Settings, Video } from "lucide-react"; // Import icon Video
@@ -11,23 +11,37 @@ const CustomChannelHeader = () => {
   const { channel } = useChannelStateContext();
   const { client } = useChatContext();
   const { authUser } = useAuthUser(); // Lấy thông tin user hiện tại
-  const navigate = useNavigate(); // Hook chuyển trang
+  // const navigate = useNavigate(); // Hook chuyển trang
 
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const isGroup = Object.prototype.hasOwnProperty.call(channel.data, 'name') && channel.data.name;
 
-  // --- LOGIC GỌI VIDEO (Chuyển từ ChatPage sang) ---
   const handleVideoCall = async () => {
     if (!channel) return;
 
     // Tạo Call ID duy nhất
     const callId = `${channel.id}_${Date.now()}`;
+    // Lấy URL hiện tại để gửi link
     const callUrl = `${window.location.origin}/call/${callId}`;
 
     try {
-      // Gửi tin nhắn kích hoạt thông báo toàn cục
+      // 1. Mở cửa sổ popup cho người gọi trước
+      const width = 1280;
+      const height = 720;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+      
+      const callWindow = window.open(
+        `/call/${callId}`,
+        "StreamCallWindow",
+        `toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=no,resizable=no,copyhistory=no,width=${width},height=${height},top=${top},left=${left}`
+      );
+      
+      if (window.focus && callWindow) callWindow.focus();
+
+      // 2. Gửi tin nhắn kích hoạt thông báo toàn cục
       await channel.sendMessage({
         text: `📞 I've started a video call. If you don't see the notification, click here: ${callUrl}`,
         custom_type: "call_ring",
@@ -37,9 +51,7 @@ const CustomChannelHeader = () => {
         attachments: [{ type: "video_call", call_url: callUrl }],
       });
 
-      // Chuyển hướng người gọi
-      navigate(`/call/${callId}`);
-      toast.success("Starting video call...");
+      toast.success("Starting video call in new window...");
     } catch (error) {
       console.error("Error starting call:", error);
       toast.error("Failed to start call");

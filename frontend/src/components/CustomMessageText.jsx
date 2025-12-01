@@ -14,23 +14,23 @@ import useAuthUser from "../hooks/useAuthUser";
 import { useReplyContext } from "../context/ReplyContext";
 
 const LANGUAGE_CODES = {
-  english: "gb",
+english: "en",
   spanish: "es",
   french: "fr",
   german: "de",
-  mandarin: "cn",
-  japanese: "jp",
-  korean: "kr",
-  hindi: "in",
+  mandarin: "zh-CN",
+  chinese: "zh-CN",
+  japanese: "ja",
+  korean: "ko",
+  hindi: "hi",
   russian: "ru",
   portuguese: "pt",
-  arabic: "sa",
+  arabic: "ar",
   italian: "it",
   turkish: "tr",
   dutch: "nl",
-  vietnamese: "vn",
-  chinese: "cn",
-  swedish: "se",
+  vietnamese: "vi",
+  swedish: "sv",
   polish: "pl",
   thai: "th",
   indonesian: "id",
@@ -152,7 +152,8 @@ const CustomMessageText = (props) => {
                 <p className={`text-xs opacity-70 ${outerText}`}>Video Room</p>
               </div>
             </div>
-            <button onClick={() => window.open(callAttachment.call_url, "_blank")}
+            <button onClick={() => window.open(callAttachment.call_url, "StreamCallWindow", 
+                                "toolbar=no,scrollbars=yes,resizable=yes,top=100,left=100,width=1280,height=720")}
                     className={`btn btn-sm w-full border-none gap-2 font-bold shadow-sm ${buttonVariant}`}>
               <Phone className="w-4 h-4" /> JOIN ROOM
             </button>
@@ -258,7 +259,7 @@ const CustomMessageText = (props) => {
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-base-100 p-1 rounded-full shadow-sm border border-base-200 absolute right-full mr-2 z-10">
                   <button onClick={handleReply} className="btn btn-ghost btn-xs btn-circle text-base-content/70" title="Reply"><Reply className="w-3.5 h-3.5" /></button>
                   <button onClick={handlePin} className="btn btn-ghost btn-xs btn-circle text-base-content/70" title="Pin"><Pin className={`w-3.5 h-3.5 ${message.pinned ? "fill-current" : ""}`} /></button>
-                  <button onClick={handleDelete} className="btn btn-ghost btn-xs btn-circle text-error" title="Thu hồi"><Trash2 className="w-3.5 h-3.5" /></button>
+
                   <button onClick={handleDelete} className="btn btn-ghost btn-xs btn-circle text-error" title="Revoke"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
             )}

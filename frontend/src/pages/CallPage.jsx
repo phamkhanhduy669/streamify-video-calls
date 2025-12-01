@@ -24,8 +24,18 @@ import PageLoader from "../components/PageLoader";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
+// Close call window, pass navigate as argument
+const closeCallWindow = (navigate) => {
+  if (window.opener) {
+    window.close();
+  } else {
+    navigate("/");
+  }
+};
+
 const CallPage = () => {
   const { id: callId } = useParams();
+  const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [call, setCall] = useState(null);
 
@@ -97,6 +107,7 @@ const CallPage = () => {
                   callId={callId}
                   token={tokenData.token}
                   authUser={authUser}
+                  navigate={navigate}
               />
             </StreamCall>
           </StreamVideo>
@@ -106,11 +117,10 @@ const CallPage = () => {
 };
 
 // --- Component Nội Dung Cuộc Gọi ---
-const CallContent = ({ callId, token, authUser }) => {
+const CallContent = ({ callId, token, authUser, navigate }) => {
   const { useCallCallingState, useParticipantCount } = useCallStateHooks();
   const callingState = useCallCallingState();
   const participantCount = useParticipantCount();
-  const navigate = useNavigate();
 
   const [targetEndTime, setTargetEndTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
@@ -168,7 +178,7 @@ const CallContent = ({ callId, token, authUser }) => {
   // Logic Timer đếm ngược
   useEffect(() => {
     if (participantCount === 1 && !targetEndTime) {
-      setTargetEndTime(Date.now() + 30000);
+      setTargetEndTime(Date.now() + 90000);
     } else if (participantCount > 1) {
       setTargetEndTime(null);
       setTimeLeft(null);
@@ -191,7 +201,7 @@ const CallContent = ({ callId, token, authUser }) => {
         await endCallSession();
 
         toast("Call ended because no one else is here.");
-        navigate("/");
+        closeCallWindow(navigate);
       } else {
         setTimeLeft(remaining);
       }
@@ -208,7 +218,7 @@ const CallContent = ({ callId, token, authUser }) => {
         if (participantCount <= 1) {
           await endCallSession();
         }
-        navigate("/");
+        closeCallWindow(navigate);
       }
     };
     handleManualLeave();
