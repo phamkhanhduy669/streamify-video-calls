@@ -25,14 +25,15 @@ const HomePage = () => {
   const nativeLang = authUser?.nativeLanguage || "English"; // ✅ Lấy native language
 
   // ✅ CẬP NHẬT useQuery CHO WORD OF THE DAY
-  const { data: wordOfTheDay, isLoading: loadingWord, refetch: refreshWord } = useQuery({
-    // Thêm nativeLang vào queryKey để khi đổi native lang thì nó fetch lại
+const { 
+    data: wordOfTheDay, 
+    isLoading: loadingWord, 
+    refetch: refreshWord,
+    isRefetching // <--- THÊM DÒNG NÀY
+  } = useQuery({
     queryKey: ["wordOfTheDay", targetLang, nativeLang], 
-    
-    // Truyền nativeLang vào hàm API
     queryFn: () => getRandomWord(targetLang, nativeLang),
-    
-    staleTime: 1000 * 60 * 60 * 24, // Cache 24h
+    staleTime: 1000 * 60 * 60 * 24, 
     refetchOnWindowFocus: false,
   });
 
@@ -89,8 +90,9 @@ const HomePage = () => {
                             onClick={() => refreshWord()} 
                             className="btn btn-ghost btn-xs btn-circle opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Get new word"
+                            disabled={loadingWord || isRefetching}
                         >
-                            <RefreshCw className={`size-4 ${loadingWord ? "animate-spin" : ""}`} />
+                            <RefreshCw className={`size-4 ${loadingWord || isRefetching ? "animate-spin" : ""}`} />
                         </button>
                     </div>
 
