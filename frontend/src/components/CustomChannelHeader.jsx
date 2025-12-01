@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChannelHeader, useChannelStateContext, useChatContext } from "stream-chat-react";
-import { useNavigate } from "react-router"; // Import navigate
+// import { useNavigate } from "react-router"; // Import navigate
 import AddMemberModal from "./AddMemberModal";
 import GroupSettingsModal from "./GroupSettingsModal";
 import { UserPlus, Settings, Video } from "lucide-react"; // Import icon Video
@@ -11,7 +11,7 @@ const CustomChannelHeader = () => {
   const { channel } = useChannelStateContext();
   const { client } = useChatContext();
   const { authUser } = useAuthUser(); // Lấy thông tin user hiện tại
-  const navigate = useNavigate(); // Hook chuyển trang
+  // const navigate = useNavigate(); // Hook chuyển trang
 
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);

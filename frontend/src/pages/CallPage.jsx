@@ -24,18 +24,18 @@ import PageLoader from "../components/PageLoader";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
 
-const closeCallWindow = () => {
-    // Kiểm tra xem có phải là cửa sổ popup không (có window.opener)
-    if (window.opener) {
-      window.close();
-    } else {
-      // Nếu lỡ mở trực tiếp bằng link thì quay về trang chủ
-      navigate("/");
-    }
-  };
+// Close call window, pass navigate as argument
+const closeCallWindow = (navigate) => {
+  if (window.opener) {
+    window.close();
+  } else {
+    navigate("/");
+  }
+};
 
 const CallPage = () => {
   const { id: callId } = useParams();
+  const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [call, setCall] = useState(null);
 
@@ -107,6 +107,7 @@ const CallPage = () => {
                   callId={callId}
                   token={tokenData.token}
                   authUser={authUser}
+                  navigate={navigate}
               />
             </StreamCall>
           </StreamVideo>
@@ -116,7 +117,7 @@ const CallPage = () => {
 };
 
 // --- Component Nội Dung Cuộc Gọi ---
-const CallContent = ({ callId, token, authUser }) => {
+const CallContent = ({ callId, token, authUser, navigate }) => {
   const { useCallCallingState, useParticipantCount } = useCallStateHooks();
   const callingState = useCallCallingState();
   const participantCount = useParticipantCount();
@@ -201,7 +202,7 @@ const CallContent = ({ callId, token, authUser }) => {
         await endCallSession();
 
         toast("Call ended because no one else is here.");
-        closeCallWindow();
+        closeCallWindow(navigate);
       } else {
         setTimeLeft(remaining);
       }
@@ -218,7 +219,7 @@ const CallContent = ({ callId, token, authUser }) => {
         if (participantCount <= 1) {
           await endCallSession();
         }
-        closeCallWindow();
+        closeCallWindow(navigate);
       }
     };
     handleManualLeave();
