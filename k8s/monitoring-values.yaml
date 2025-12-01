@@ -49,3 +49,5 @@ kubeControllerManager:
   enabled: false
 kubeScheduler:
   enabled: false
+kubeProxy:
+  enabled: false
