@@ -1,0 +1,51 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: streamify-backend-hpa
+  namespace: streamify
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: streamify-backend # Trỏ tới deployment name trong backend-deployment.yaml
+  minReplicas: 2
+  maxReplicas: 10 # Số lượng pod tối đa có thể scale lên
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70 # Scale lên khi CPU trung bình vượt quá 70% của request (100m)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80 # Scale lên khi RAM trung bình vượt quá 80% của request (128Mi)
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: streamify-frontend-hpa
+  namespace: streamify
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: streamify-frontend # Trỏ tới deployment name trong frontend-deployment.yaml
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70 # Scale lên khi CPU vượt quá 70% của request (50m)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80 # Scale lên khi RAM vượt quá 80% của request (64Mi)
