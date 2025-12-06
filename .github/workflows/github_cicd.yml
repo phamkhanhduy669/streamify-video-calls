@@ -6,8 +6,11 @@ on:
   pull_request:
     branches: [ "master" ]
 
+permissions:
+  contents: write
+
 jobs:
-  # JOB 1: KIỂM TRA CODE (LINT & BUILD)
+  # JOB 1: (Build & Test)
   build-and-test:
     runs-on: ubuntu-latest
     steps:
@@ -19,7 +22,6 @@ jobs:
         with:
           node-version: '>=20.x'
 
-      # Caching và Install cho Backend
       - name: Cache backend dependencies
         uses: actions/cache@v4
         with:
@@ -27,11 +29,11 @@ jobs:
           key: ${{ runner.os }}-backend-npm-${{ hashFiles('backend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-backend-npm-
+      
       - name: Install backend dependencies
         working-directory: ./backend
         run: npm install
 
-      # Caching và Install cho Frontend
       - name: Cache frontend dependencies
         uses: actions/cache@v4
         with:
@@ -39,6 +41,7 @@ jobs:
           key: ${{ runner.os }}-frontend-npm-${{ hashFiles('frontend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-frontend-npm-
+
       - name: Install frontend dependencies
         working-directory: ./frontend
         run: npm install
@@ -53,8 +56,8 @@ jobs:
         env:
           VITE_STREAM_API_KEY: ${{ secrets.VITE_STREAM_API_KEY }}
 
-  # JOB 2: BUILD VÀ ĐẨY DOCKER IMAGES
-  push-to-dockerhub:
+  # JOB 2: DÙNG GITHUB.SHA TRỰC TIẾP
+  push-to-dockerhub-and-update-k8s:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     needs: build-and-test 
@@ -62,26 +65,57 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # 1. Build & Push Backend dùng github.sha
       - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-backend:latest
+          # Thay đổi ở đây: dùng github.sha
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-backend:${{ github.sha }}
 
+      # 2. Build & Push Frontend dùng github.sha
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-frontend:latest
+          # Thay đổi ở đây: dùng github.sha
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-frontend:${{ github.sha }}
           secrets: |
             "vite_stream_api_key=${{ secrets.VITE_STREAM_API_KEY }}"
+
+      # 3. Cập nhật file K8s dùng github.sha
+      - name: Update Kubernetes manifests
+        run: |
+          # Dùng sed thay thế tag bằng github.sha
+          sed -i "s|image: .*streamify-backend:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-backend:${{ github.sha }}|g" k8s/backend-deployment.yaml
+          sed -i "s|image: .*streamify-frontend:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-frontend:${{ github.sha }}|g" k8s/frontend-deployment.yaml
+          
+          echo "Verifying changes..."
+          grep "image:" k8s/backend-deployment.yaml
+          grep "image:" k8s/frontend-deployment.yaml
+
+      # 4. Commit và Push
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          
+          if [[ -n $(git status -s) ]]; then
+            git add k8s/backend-deployment.yaml k8s/frontend-deployment.yaml
+            # Commit message cũng dùng github.sha cho rõ ràng
+            git commit -m "Update k8s docker images to tag ${{ github.sha }}"
+            git push
+          else
+            echo "No changes to commit"
+          fi
