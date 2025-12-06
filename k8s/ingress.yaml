@@ -4,22 +4,30 @@ metadata:
   name: streamify-ingress
   namespace: streamify
   annotations:
-    alb.ingress.kubernetes.io/target-type: ip
+    # Chỉ định loại Load Balancer là internet-facing (công khai)
     alb.ingress.kubernetes.io/scheme: internet-facing
-    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+
+    # Sử dụng chế độ IP để route traffic trực tiếp đến Pod (tối ưu nhất cho EKS)
+    alb.ingress.kubernetes.io/target-type: ip
+
+    # Gom nhóm nếu sau này có nhiều ingress
+    alb.ingress.kubernetes.io/group.name: streamify-group
+
+    # Health check path (QUAN TRỌNG: AWS cần biết backend sống hay chết)
+    # Lưu ý: Backend cần trả về 200 OK tại đường dẫn này
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    alb.ingress.kubernetes.io/success-codes: '200'
+
+    # Lắng nghe port 80
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+
 spec:
-  ingressClassName: nginx
+  ingressClassName: alb # ĐỔI TỪ nginx SANG alb
   rules:
     - host: streamifyapp.id.vn
       http:
         paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: streamify-frontend-svc
-                port:
-                  number: 80
+          # Route cho Backend (/api) phải đặt trước để tránh bị ghi đè bởi root (/)
           - path: /api
             pathType: Prefix
             backend:
@@ -27,3 +35,11 @@ spec:
                 name: streamify-backend-svc
                 port:
                   number: 5001
+          # Route cho Frontend
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: streamify-frontend-svc
+                port:
+                  number: 80

@@ -85,3 +85,38 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-frontend:latest
           secrets: |
             "vite_stream_api_key=${{ secrets.VITE_STREAM_API_KEY }}"
+            
+    # JOB 3: TRIỂN KHAI LÊN AWS EKS
+    deploy-to-eks:
+      needs: push-to-dockerhub
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v4
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ secrets.AWS_REGION }}
+
+        - name: Update Kubeconfig
+          run: aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
+
+        - name: Deploy to Kubernetes
+          run: |
+            kubectl create namespace streamify --dry-run=client -o yaml | kubectl apply -f -
+
+            kubectl apply -f k8s/configmap.yaml
+
+            kubectl apply -f k8s/backend-deployment.yaml
+            kubectl apply -f k8s/backend-service.yaml
+            kubectl apply -f k8s/frontend-deployment.yaml
+            kubectl apply -f k8s/frontend-service.yaml
+
+            kubectl apply -f k8s/ingress.yaml
+            kubectl apply -f k8s/hpa.yaml
+
+            kubectl rollout restart deployment/streamify-backend -n streamify
+            kubectl rollout restart deployment/streamify-frontend -n streamify
