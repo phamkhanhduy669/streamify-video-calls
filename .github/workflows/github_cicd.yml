@@ -6,11 +6,11 @@ on:
   pull_request:
     branches: [ "master" ]
 
-# 1. Cấp quyền ghi cho GitHub Actions để push code lại repo
 permissions:
   contents: write
 
 jobs:
+  # JOB 1: (Build & Test)
   build-and-test:
     runs-on: ubuntu-latest
     steps:
@@ -22,13 +22,41 @@ jobs:
         with:
           node-version: '>=20.x'
 
-      - name: Install dependencies & Build
-        run: |
-          cd backend && npm install
-          cd ../frontend && npm install && npm run lint && npm run build
+      - name: Cache backend dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend/node_modules
+          key: ${{ runner.os }}-backend-npm-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-npm-
+      
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm install
+
+      - name: Cache frontend dependencies
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-frontend-npm-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-npm-
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm install
+
+      - name: Lint frontend code
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Build frontend for validation
+        working-directory: ./frontend
+        run: npm run build
         env:
           VITE_STREAM_API_KEY: ${{ secrets.VITE_STREAM_API_KEY }}
 
+  # JOB 2: DÙNG GITHUB.SHA TRỰC TIẾP
   push-to-dockerhub-and-update-k8s:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
@@ -37,10 +65,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Lấy Short SHA (ví dụ: a1b2c3d) để làm Tag
-      - name: Get Short SHA
-        id: vars
-        run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -48,48 +72,49 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 3. Build & Push Backend với tag SHA
+      # 1. Build & Push Backend dùng github.sha
       - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          # Dùng env.SHORT_SHA thay vì latest
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-backend:${{ env.SHORT_SHA }}
+          # Thay đổi ở đây: dùng github.sha
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-backend:${{ github.sha }}
 
-      # 4. Build & Push Frontend với tag SHA
+      # 2. Build & Push Frontend dùng github.sha
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          # Dùng env.SHORT_SHA thay vì latest
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-frontend:${{ env.SHORT_SHA }}
+          # Thay đổi ở đây: dùng github.sha
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-frontend:${{ github.sha }}
           secrets: |
             "vite_stream_api_key=${{ secrets.VITE_STREAM_API_KEY }}"
 
-      # 5. Cập nhật file Kubernetes Manifest trong Repo
+      # 3. Cập nhật file K8s dùng github.sha
       - name: Update Kubernetes manifests
         run: |
-          # Dùng sed để tìm dòng chứa image và thay thế bằng tag mới
-          sed -i "s|image: .*streamify-backend:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-backend:${{ env.SHORT_SHA }}|g" k8s/backend-deployment.yaml
-          sed -i "s|image: .*streamify-frontend:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-frontend:${{ env.SHORT_SHA }}|g" k8s/frontend-deployment.yaml
+          # Dùng sed thay thế tag bằng github.sha
+          sed -i "s|image: .*streamify-backend:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-backend:${{ github.sha }}|g" k8s/backend-deployment.yaml
+          sed -i "s|image: .*streamify-frontend:.*|image: ${{ secrets.DOCKERHUB_USERNAME }}/streamify-frontend:${{ github.sha }}|g" k8s/frontend-deployment.yaml
           
-          # Kiểm tra xem file đã đổi chưa (Optional)
-          cat k8s/backend-deployment.yaml | grep image:
+          echo "Verifying changes..."
+          grep "image:" k8s/backend-deployment.yaml
+          grep "image:" k8s/frontend-deployment.yaml
 
-      # 6. Commit và Push thay đổi lên Git
+      # 4. Commit và Push
       - name: Commit and Push changes
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
           
-          # Chỉ commit nếu có sự thay đổi
           if [[ -n $(git status -s) ]]; then
             git add k8s/backend-deployment.yaml k8s/frontend-deployment.yaml
-            git commit -m "Update k8s docker images to tag ${{ env.SHORT_SHA }}"
+            # Commit message cũng dùng github.sha cho rõ ràng
+            git commit -m "Update k8s docker images to tag ${{ github.sha }}"
             git push
           else
             echo "No changes to commit"
