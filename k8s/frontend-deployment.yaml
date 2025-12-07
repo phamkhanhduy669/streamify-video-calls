@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: streamify-frontend
-        image: phamkhanhduy/streamify-frontend:325ad7777d3808125f3db5cdcf89a21d63ba4e2f
+        image: phamkhanhduy/streamify-frontend:979ad68a5f84135596ef7569b214ebf5afb2a346
         imagePullPolicy: Always  
         ports:
         - containerPort: 80
