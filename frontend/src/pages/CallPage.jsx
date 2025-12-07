@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import useAuthUser from "../hooks/useAuthUser";
 import { useQuery } from "@tanstack/react-query";
 import { getStreamToken } from "../lib/api";
-import { axiosInstance } from "../lib/axios"; // Import Axios để gọi API
+import { axiosInstance } from "../lib/axios";
 
 import {
   StreamVideo,
@@ -21,6 +21,8 @@ import toast from "react-hot-toast";
 import PageLoader from "../components/PageLoader";
 
 const STREAM_API_KEY = import.meta.env.VITE_STREAM_API_KEY;
+// Định nghĩa URL Backend để dùng cho sendBeacon (cần URL tuyệt đối)
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
 // Helper: Đóng cửa sổ
 const closeCallWindow = (navigate) => {
@@ -115,30 +117,54 @@ const CallPage = () => {
 const CallContent = ({ callId, navigate }) => {
   const { useCallCallingState, useParticipantCount } = useCallStateHooks();
   const callingState = useCallCallingState();
-  const participantCount = useParticipantCount();
+  const participantCount = useParticipantCount(); // Stream SDK tự cập nhật số lượng người
 
   const [targetEndTime, setTargetEndTime] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
-  const [hasEnded, setHasEnded] = useState(false); // Cờ tránh gọi API nhiều lần
+  const [hasEnded, setHasEnded] = useState(false);
 
-  // --- HÀM GỌI API BACKEND ---
+  // --- HÀM GỌI API BACKEND (Dùng cho nút bấm đỏ & hết giờ) ---
   const endCallSession = async () => {
     if (hasEnded) return;
     setHasEnded(true);
 
     try {
       console.log("Ending call session...");
-      // Gọi API để server xử lý update tin nhắn
       await axiosInstance.post("/chat/end-call", { callId });
     } catch (error) {
       console.error("Error ending call session:", error);
     }
   };
 
+  // --- LOGIC MỚI: XỬ LÝ ĐÓNG CỬA SỔ / TAB ---
+  // Logic này y hệt logic nút đỏ: Chỉ end call nếu participantCount <= 1
+  useEffect(() => {
+    const handleWindowClose = () => {
+      // Kiểm tra ngay tại thời điểm đóng tab
+      if (participantCount <= 1) {
+        const url = `${API_URL}/api/chat/end-call`;
+        const data = JSON.stringify({ callId });
+        
+        // Tạo Blob để backend hiểu là application/json
+        const blob = new Blob([data], { type: 'application/json' });
+
+        // sendBeacon gửi request ngầm định bất chấp cửa sổ đóng
+        navigator.sendBeacon(url, blob);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleWindowClose);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleWindowClose);
+    };
+  }, [callId, participantCount]); // Dependencies quan trọng để lấy đúng số count mới nhất
+  // -----------------------------------------------------------
+
   // Logic Timer: Nếu còn 1 người -> set thời gian đếm ngược
   useEffect(() => {
     if (participantCount === 1 && !targetEndTime) {
-      setTargetEndTime(Date.now() + 90000); // Test 15 giây (sau sửa thành 90000 = 1.5 phút)
+      setTargetEndTime(Date.now() + 90000); // 1.5 phút
     } else if (participantCount > 1) {
       setTargetEndTime(null);
       setTimeLeft(null);
@@ -175,7 +201,7 @@ const CallContent = ({ callId, navigate }) => {
   useEffect(() => {
     const handleManualLeave = async () => {
       if (callingState === CallingState.LEFT) {
-        // Nếu mình rời đi và phòng không còn ai (hoặc chỉ còn mình vừa out)
+        // Logic gốc của bạn: Nếu mình rời đi và phòng không còn ai
         if (participantCount <= 1) {
           await endCallSession();
         }
