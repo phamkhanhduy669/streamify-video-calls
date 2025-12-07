@@ -18,6 +18,7 @@ Streamify is a modern Full-stack social networking and real-time communication p
 - Multimedia Support: Send images via chat (integrated with Cloudinary).
 
 - Message Translation: Automatic message translation to support multi-language conversations.
+
 🌏 Social Network
 - Newsfeed: Create posts, comment, and interact (Like/Comment).
 
