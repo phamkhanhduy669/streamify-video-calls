@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: streamify-backend
-        image: phamkhanhduy/streamify-backend:3cd3eef69a0683216a2688eb850d44fb3224e397
+        image: phamkhanhduy/streamify-backend:a2e67a35f9a73d16e59dbd081cf0e7568e69285c
         imagePullPolicy: Always 
         ports:
         - containerPort: 5001
