@@ -11,6 +11,10 @@
       background-color: #1C64F2 !important;
     }
     #dify-chatbot-bubble-window {
+      position: fixed !important;
+      right: 2rem !important;
+      bottom: 2rem !important;
+      z-index: 9999 !important;
       width: 24rem !important;
       height: 40rem !important;
     }
@@ -20,25 +24,8 @@
 <div id="root"></div>
 <script type="module" src="/src/main.jsx"></script>
 
-<script>
-  window.difyChatbotConfig = {
-    token: '9tkDY1Iz8Oz9S0Vi',
-    inputs: {
-      // You can define the inputs from the Start node here
-      // key is the variable name
-      // e.g.
-      // name: "NAME"
-    },
-    systemVariables: {
-      // user_id: 'YOU CAN DEFINE USER ID HERE',
-      // conversation_id: 'YOU CAN DEFINE CONVERSATION ID HERE, IT MUST BE A VALID UUID',
-    },
-    userVariables: {
-      // avatar_url: 'YOU CAN DEFINE USER AVATAR URL HERE',
-      // name: 'YOU CAN DEFINE USER NAME HERE',
-    },
-  }
-</script>
+<script src="dify-config.js"></script>
+
 <script
         src="https://udify.app/embed.min.js"
         id="9tkDY1Iz8Oz9S0Vi"
